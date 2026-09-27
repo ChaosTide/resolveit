@@ -1,0 +1,34 @@
+<?php
+declare(strict_types=1);
+
+// App Service Authentication must require Microsoft login before reaching PHP.
+function azure_team_identity(): array
+{
+    $raw = base64_decode($_SERVER['HTTP_X_MS_CLIENT_PRINCIPAL'] ?? '', true);
+    $principal = $raw === false ? null : json_decode($raw, true);
+    $claims = [];
+    foreach (($principal['claims'] ?? []) as $claim) {
+        $claims[$claim['typ']] = $claim['val'];
+    }
+    $tenant = $claims['http://schemas.microsoft.com/identity/claims/tenantid'] ?? $claims['tid'] ?? '';
+    $email = strtolower($claims['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'] ?? $claims['preferred_username'] ?? '');
+    $allowed = array_map('trim', explode(',', getenv('TEAM_EMAILS') ?: ''));
+    if (($principal['auth_typ'] ?? '') !== 'aad' || $tenant !== getenv('TEAM_TENANT') || !in_array($email, $allowed, true)) {
+        http_response_code(403);
+        exit('Access is restricted to the six approved CTS 4911 team members.');
+    }
+    return ['email' => $email, 'name' => $claims['name'] ?? $email];
+}
+
+function azure_team_login(PDO $pdo, array $identity): void
+{
+    $stmt = $pdo->prepare('SELECT u.id,u.name,u.email,u.active,r.name AS role FROM users u JOIN roles r ON r.id=u.role_id WHERE u.email=?');
+    $stmt->execute([$identity['email']]);
+    $user = $stmt->fetch();
+    if (!$user || !$user['active']) {
+        http_response_code(403);
+        exit('Your team account is not active. Contact Jordan.');
+    }
+    if (($_SESSION['user']['id'] ?? null) !== (int)$user['id']) session_regenerate_id(true);
+    $_SESSION['user'] = ['id'=>(int)$user['id'],'name'=>$user['name'],'email'=>$user['email'],'role'=>$user['role']];
+}

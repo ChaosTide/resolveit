@@ -1,0 +1,5 @@
+app/config.php
+*.log
+.idea/
+.vscode/
+LOCAL_LOGIN.txt
