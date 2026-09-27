@@ -22,6 +22,7 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/audit.php';
 require_once __DIR__ . '/reports.php';
+require_once __DIR__ . '/tickets.php';
 require_once __DIR__ . '/ui.php';
 
 session_name($config['session']['name']);

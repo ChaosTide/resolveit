@@ -118,15 +118,26 @@ function icon(string $name): string
  * Ticket table used by the dashboard and the ticket list. Rows come from ticket_list_sql().
  * Staff see requester and SLA columns; employees see their own tickets without SLA details.
  * With $bulk, each row gets a checkbox tied to the form with id "bulk-form" (tickets.php).
+ * With $sort (['key' => , 'dir' => , 'query' => current filters]), column headers become sort links.
  */
-function ticket_table(array $tickets, bool $staff, string $emptyText, bool $bulk = false): string
+function ticket_table(array $tickets, bool $staff, string $emptyText, bool $bulk = false, ?array $sort = null): string
 {
+    $th = function (string $label, ?string $key, string $class = '') use ($sort, $staff) {
+        $attr = $class !== '' ? ' class="' . $class . '"' : '';
+        if (!$sort || $key === null || !isset(ticket_sort_options($staff)[$key])) return "<th$attr>" . e($label) . '</th>';
+        $active = $sort['key'] === $key;
+        $dir = $active ? ($sort['dir'] === 'asc' ? 'desc' : 'asc') : ticket_sort_options($staff)[$key][1];
+        $href = '?' . http_build_query(['sort' => $key, 'dir' => $dir] + $sort['query']);
+        $ariaSort = $active ? ' aria-sort="' . ($sort['dir'] === 'asc' ? 'ascending' : 'descending') . '"' : '';
+        $arrow = $active ? ($sort['dir'] === 'asc' ? ' &uarr;' : ' &darr;') : '';
+        return "<th$attr$ariaSort><a class=\"sort-link" . ($active ? ' active' : '') . '" href="' . e($href) . '" data-sort-key="' . $key . '">' . e($label) . $arrow . '</a></th>';
+    };
     $html = '<div class="table-wrap"><table class="ticket-table"><thead><tr>'
         . ($bulk ? '<th class="check-col"><input type="checkbox" data-select-all aria-label="Select all tickets on this page"></th>' : '')
-        . '<th>ID</th><th>Subject</th>'
-        . ($staff ? '<th class="hide-sm">Requester</th>' : '')
-        . '<th>Priority</th><th>Status</th><th class="hide-sm">Assigned to</th>'
-        . ($staff ? '<th>SLA</th>' : '') . '<th class="hide-sm">Updated</th></tr></thead><tbody>';
+        . $th('ID', 'id') . $th('Subject', 'title')
+        . ($staff ? $th('Requester', 'requester', 'hide-sm') : '')
+        . $th('Priority', 'priority') . $th('Status', 'status') . $th('Assigned to', 'assignee', 'hide-sm')
+        . ($staff ? $th('SLA', 'due') : '') . $th('Updated', 'updated', 'hide-sm') . '</tr></thead><tbody>';
     foreach ($tickets as $t) {
         $id = (int) $t['id'];
         $open = $t['resolved_at'] === null;
@@ -139,7 +150,7 @@ function ticket_table(array $tickets, bool $staff, string $emptyText, bool $bulk
             . '<td class="ticket-id"><a href="ticket.php?id=' . $id . '">#' . $id . '</a></td>'
             . '<td class="subject-col"><a class="ticket-title" href="ticket.php?id=' . $id . '">' . e($t['title']) . '</a><span class="ticket-sub">' . e($t['category']) . $due . '</span></td>'
             . ($staff ? '<td class="hide-sm requester-col"><span class="person">' . avatar($t['requester']) . '<span>' . e($t['requester'])
-                . ($t['requester_department'] ? '<span class="ticket-sub">' . e($t['requester_department']) . '</span>' : '') . '</span></span></td>' : '')
+                . ($t['requester_organization'] ? '<span class="ticket-sub">' . e($t['requester_organization']) . '</span>' : '') . '</span></span></td>' : '')
             . '<td>' . priority_badge($t['priority'], (int) $t['priority_order']) . '</td>'
             . '<td>' . status_badge($t['status']) . ($open && $t['waiting'] ? ' <span class="badge waiting-tag" title="IT replied last; waiting on the requester">Waiting</span>' : '') . '</td>'
             . '<td class="hide-sm"><span class="person">' . avatar($t['assignee']) . e($t['assignee'] ?? 'Unassigned') . '</span></td>'
@@ -150,6 +161,14 @@ function ticket_table(array $tickets, bool $staff, string $emptyText, bool $bulk
         $html .= '<tr><td colspan="' . (($staff ? 8 : 6) + ($bulk ? 1 : 0)) . '"><div class="empty-state">' . icon('inbox') . '<p>' . e($emptyText) . '</p></div></td></tr>';
     }
     return $html . '</tbody></table></div>';
+}
+
+/** Organizations for a dropdown: active ones plus $keepId (a user's current, possibly inactive, organization). */
+function organization_options(PDO $pdo, ?int $keepId = null): array
+{
+    $stmt = $pdo->prepare('SELECT id, name, active FROM organizations WHERE active = 1 OR id = ? ORDER BY name');
+    $stmt->execute([$keepId ?? 0]);
+    return $stmt->fetchAll();
 }
 
 /** Previous / next links that keep the current filters. */

@@ -1,4 +1,6 @@
 <?php
+// Fragments loaded into the split-view pane (ticket.php?partial=1) render without the page layout.
+if (!empty($partialView)) return;
 $flashMessage = $_SESSION['flash'] ?? null; unset($_SESSION['flash']);
 $currentPage = basename($_SERVER['SCRIPT_NAME'] ?? '');
 $currentUser = current_user();

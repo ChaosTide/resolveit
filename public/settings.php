@@ -1,13 +1,14 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 require_role('administrator');
-$tabs = ['categories' => 'Categories', 'priorities' => 'Priorities', 'statuses' => 'Statuses', 'audit' => 'Audit Log'];
+$tabs = ['categories' => 'Categories', 'organizations' => 'Organizations', 'priorities' => 'Priorities', 'statuses' => 'Statuses', 'audit' => 'Audit Log'];
 $tab = array_key_exists($_GET['tab'] ?? '', $tabs) ? $_GET['tab'] : 'categories';
 $errors = [];
 
 function unique_error(PDOException $ex, string $thing): string
 {
-    return $ex->getCode() === '23000' ? "A $thing with that name already exists." : "The $thing could not be saved.";
+    $article = in_array(strtolower($thing[0]), ['a', 'e', 'i', 'o', 'u'], true) ? 'An' : 'A';
+    return $ex->getCode() === '23000' ? "$article $thing with that name already exists." : "The $thing could not be saved.";
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -16,7 +17,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = clean_text($_POST['name'] ?? '');
     $id = valid_id($_POST['id'] ?? null);
     try {
-        if ($action === 'category_add') {
+        if ($action === 'org_add') {
+            $tab = 'organizations';
+            if ($name === '' || mb_strlen($name) > 100) $errors[] = 'Organization name is required and must be at most 100 characters.';
+            if (!$errors) {
+                $pdo->prepare('INSERT INTO organizations (name) VALUES (?)')->execute([$name]);
+                audit_log($pdo, 'organization added', $name);
+                flash('success', 'Organization added.'); redirect('settings.php?tab=organizations');
+            }
+        } elseif ($action === 'org_rename') {
+            $tab = 'organizations';
+            if (!$id) $errors[] = 'Invalid organization.';
+            if ($name === '' || mb_strlen($name) > 100) $errors[] = 'Organization name is required and must be at most 100 characters.';
+            if (!$errors) {
+                $old = $pdo->prepare('SELECT name FROM organizations WHERE id=?'); $old->execute([$id]); $oldName = $old->fetchColumn();
+                if ($oldName === false) { $errors[] = 'That organization no longer exists.'; }
+                else {
+                    if ($oldName !== $name) {
+                        $pdo->prepare('UPDATE organizations SET name=? WHERE id=?')->execute([$name, $id]);
+                        audit_log($pdo, 'organization renamed', $name, "Was: $oldName");
+                    }
+                    flash('success', 'Organization saved.'); redirect('settings.php?tab=organizations');
+                }
+            }
+        } elseif ($action === 'org_toggle') {
+            $tab = 'organizations';
+            $stmt = $pdo->prepare('SELECT name, active FROM organizations WHERE id=?'); $stmt->execute([$id]); $org = $stmt->fetch();
+            if (!$org) { $errors[] = 'That organization no longer exists.'; }
+            else {
+                // Deactivating hides it from new-user forms; existing users keep it.
+                $pdo->prepare('UPDATE organizations SET active = CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id=?')->execute([$id]);
+                audit_log($pdo, $org['active'] ? 'organization deactivated' : 'organization activated', $org['name']);
+                flash('success', 'Organization updated.'); redirect('settings.php?tab=organizations');
+            }
+        } elseif ($action === 'category_add') {
             $tab = 'categories';
             if ($name === '' || mb_strlen($name) > 80) $errors[] = 'Category name is required and must be at most 80 characters.';
             if (!$errors) {
@@ -71,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Unknown action.';
         }
     } catch (PDOException $ex) {
-        $errors[] = unique_error($ex, str_starts_with($action, 'priority') ? 'priority' : 'category');
+        $errors[] = unique_error($ex, str_starts_with($action, 'priority') ? 'priority' : (str_starts_with($action, 'org_') ? 'organization' : 'category'));
     }
 }
 
@@ -95,6 +129,24 @@ $pageTitle = 'Settings'; require __DIR__ . '/partials/header.php';
 <td class="num"><?= (int) $category['tickets'] ?></td><td><?= $category['active'] ? 'Yes' : 'No' ?></td>
 <td><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="category_toggle"><input type="hidden" name="id" value="<?= (int) $category['id'] ?>"><button class="<?= $category['active'] ? 'secondary' : '' ?>"><?= $category['active'] ? 'Deactivate' : 'Activate' ?></button></form></td>
 </tr><?php endforeach; ?>
+</tbody></table>
+
+<?php elseif ($tab === 'organizations'):
+    $orgs = $pdo->query('SELECT o.id, o.name, o.active,
+        (SELECT COUNT(*) FROM users u WHERE u.organization_id = o.id) AS members,
+        (SELECT COUNT(*) FROM tickets t JOIN users u ON u.id = t.requester_id WHERE u.organization_id = o.id) AS tickets
+        FROM organizations o ORDER BY o.name')->fetchAll(); ?>
+<section class="card"><h2>Add organization</h2>
+<form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="org_add">
+<input name="name" maxlength="100" placeholder="e.g. Finance Office, Library, Housing" aria-label="New organization name" required><button>Add Organization</button></form></section>
+<p class="meta">Organizations group requesters (for example departments or offices). Assign people to one in Manage Users; tickets can be filtered and searched by organization. Deactivating an organization hides it from the user forms but keeps existing members.</p>
+<table><thead><tr><th>Name</th><th class="num">Members</th><th class="num">Tickets</th><th>Active</th><th>Deactivate / activate</th></tr></thead><tbody>
+<?php foreach ($orgs as $org): ?><tr>
+<td><form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="org_rename"><input type="hidden" name="id" value="<?= (int) $org['id'] ?>"><input name="name" maxlength="100" value="<?= e($org['name']) ?>" aria-label="Organization name" required><button>Rename</button></form></td>
+<td class="num"><?= (int) $org['members'] ?></td><td class="num"><a href="search.php?organization=<?= (int) $org['id'] ?>"><?= (int) $org['tickets'] ?></a></td><td><?= $org['active'] ? 'Yes' : 'No' ?></td>
+<td><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="org_toggle"><input type="hidden" name="id" value="<?= (int) $org['id'] ?>"><button class="<?= $org['active'] ? 'secondary' : '' ?>"><?= $org['active'] ? 'Deactivate' : 'Activate' ?></button></form></td>
+</tr><?php endforeach; ?>
+<?php if (!$orgs): ?><tr><td colspan="5"><div class="empty-state"><?= icon('users') ?><p>No organizations yet.</p></div></td></tr><?php endif; ?>
 </tbody></table>
 
 <?php elseif ($tab === 'priorities'):

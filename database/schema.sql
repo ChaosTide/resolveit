@@ -7,13 +7,18 @@ GO
 USE TicketManagement;
 GO
 CREATE TABLE roles (id TINYINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(30) NOT NULL UNIQUE);
+CREATE TABLE organizations (
+ id INT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(100) NOT NULL CONSTRAINT uq_organizations_name UNIQUE,
+ active BIT NOT NULL CONSTRAINT df_organizations_active DEFAULT 1,
+ created_at DATETIME2(0) NOT NULL CONSTRAINT df_organizations_created DEFAULT SYSDATETIME()
+);
 CREATE TABLE users (
  id INT IDENTITY(1,1) PRIMARY KEY, role_id TINYINT NOT NULL, name NVARCHAR(100) NOT NULL,
  email NVARCHAR(190) NOT NULL UNIQUE, password_hash NVARCHAR(255) NOT NULL,
  active BIT NOT NULL CONSTRAINT df_users_active DEFAULT 1,
  created_at DATETIME2(0) NOT NULL CONSTRAINT df_users_created DEFAULT SYSDATETIME(),
  password_changed_at DATETIME2(0) NULL,
- department NVARCHAR(100) NULL,
+ organization_id INT NULL CONSTRAINT fk_users_organization FOREIGN KEY REFERENCES organizations(id),
  CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 CREATE TABLE categories (id SMALLINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(80) NOT NULL UNIQUE, active BIT NOT NULL CONSTRAINT df_categories_active DEFAULT 1);
@@ -34,6 +39,7 @@ CREATE TABLE tickets (
  CONSTRAINT fk_ticket_priority FOREIGN KEY (priority_id) REFERENCES priorities(id),
  CONSTRAINT fk_ticket_status FOREIGN KEY (status_id) REFERENCES statuses(id)
 );
+CREATE INDEX idx_users_organization ON users(organization_id);
 CREATE INDEX idx_ticket_requester ON tickets(requester_id);
 CREATE INDEX idx_ticket_assignee ON tickets(assigned_to);
 CREATE INDEX idx_ticket_status_priority ON tickets(status_id, priority_id);

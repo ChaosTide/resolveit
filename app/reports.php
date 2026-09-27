@@ -21,17 +21,18 @@ function ticket_sla_base(): string
 }
 
 /**
- * Ticket rows with SLA data plus requester (and department), assignee, and category names, for ticket tables.
+ * Ticket rows with SLA data plus requester (and organization), assignee, and category names, for ticket tables.
  * waiting = 1 when the latest reply came from IT staff, i.e. the ticket is waiting on the requester.
  * past_due = 1 when a staff-set due date has passed on an unresolved ticket.
  */
 function ticket_list_sql(): string
 {
-    return "SELECT x.*, r.name AS requester, r.department AS requester_department, a.name AS assignee, c.name AS category,
+    return "SELECT x.*, r.name AS requester, r.organization_id AS requester_organization_id, org.name AS requester_organization, a.name AS assignee, c.name AS category,
         CASE WHEN last_note.role IS NOT NULL AND last_note.role <> 'employee' THEN 1 ELSE 0 END AS waiting,
         CASE WHEN x.due_date < CAST(SYSDATETIME() AS DATE) AND x.resolved_at IS NULL THEN 1 ELSE 0 END AS past_due
         FROM (" . ticket_sla_base() . ") x
         JOIN users r ON r.id = x.requester_id
+        LEFT JOIN organizations org ON org.id = r.organization_id
         LEFT JOIN users a ON a.id = x.assigned_to
         JOIN categories c ON c.id = x.category_id
         OUTER APPLY (SELECT TOP 1 ro.name AS role FROM ticket_notes n JOIN users nu ON nu.id = n.author_id

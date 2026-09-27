@@ -9,6 +9,7 @@ if (!$ticket) { http_response_code(404); exit('Ticket not found.'); }
 if (!can_view_ticket($ticket)) { http_response_code(403); exit('403 Forbidden: employees may only view their own tickets.'); }
 $staff = has_role('technician', 'administrator');
 $isClosed = $ticket['status'] === 'Closed';
+$partialView = !empty($_GET['partial']); // split-view pane: content only, no page layout
 
 // Replies: the requester and staff can add to the conversation until the ticket is closed.
 $errors = [];
@@ -24,7 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->prepare('UPDATE tickets SET updated_at = SYSDATETIME() WHERE id = ?')->execute([$ticketId]);
         if ($staff) record_first_response($pdo, $ticketId);
         $pdo->commit();
-        flash('success', 'Reply added.'); redirect('ticket.php?id=' . $ticketId . '#conversation');
+        flash('success', 'Reply added.');
+        // Replies sent from the split view return to the same list; only local ticket-list URLs are accepted.
+        $back = is_string($_POST['back'] ?? null) ? $_POST['back'] : '';
+        if (preg_match('#^tickets\.php(\?[A-Za-z0-9_\-=&%\[\].]*)?$#', $back)) redirect($back);
+        redirect('ticket.php?id=' . $ticketId . '#conversation');
     }
 }
 
@@ -36,6 +41,7 @@ $historyStmt->execute([$ticketId]); $history = $historyStmt->fetchAll();
 $workflow = $pdo->query('SELECT name, sort_order FROM statuses ORDER BY sort_order')->fetchAll();
 $pageTitle = 'Ticket #' . $ticketId; require __DIR__ . '/partials/header.php';
 ?>
+<?php if ($partialView): ?><div class="pane-toolbar"><a class="button secondary small" href="ticket.php?id=<?= $ticketId ?>">Open full page</a><button type="button" class="icon-button" data-close-pane aria-label="Close preview">&times;</button></div><?php endif; ?>
 <div class="page-header">
     <div>
         <p class="breadcrumb"><a href="tickets.php"><?= $staff ? 'Tickets' : 'My Tickets' ?></a> / #<?= $ticketId ?></p>
@@ -76,6 +82,7 @@ $pageTitle = 'Ticket #' . $ticketId; require __DIR__ . '/partials/header.php';
                 <form method="post" action="ticket.php?id=<?= $ticketId ?>#conversation">
                     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="id" value="<?= $ticketId ?>">
+                    <input type="hidden" name="back" value="" data-back-url>
                     <label for="note"><?= $staff ? 'Add a note' : 'Reply to IT' ?></label>
                     <textarea id="note" name="note" maxlength="5000" placeholder="<?= $staff ? 'Visible to the requester and IT staff.' : 'Add details, answer a question, or tell us if the problem changed.' ?>" required><?= e($reply) ?></textarea>
                     <button type="submit">Post Reply</button>
@@ -98,7 +105,7 @@ $pageTitle = 'Ticket #' . $ticketId; require __DIR__ . '/partials/header.php';
                 <div><dt>Status</dt><dd data-field="status"><?= status_badge($ticket['status']) ?></dd></div>
                 <div><dt>Priority</dt><dd data-field="priority"><?= priority_badge($ticket['priority'], (int) $ticket['priority_order']) ?></dd></div>
                 <div><dt>Category</dt><dd><?= e($ticket['category']) ?></dd></div>
-                <div><dt>Requester</dt><dd><span class="person"><?= avatar($ticket['requester']) ?><span><?= e($ticket['requester']) ?><?php if ($ticket['requester_department']): ?><span class="ticket-sub"><?= e($ticket['requester_department']) ?></span><?php endif; ?></span></span></dd></div>
+                <div><dt>Requester</dt><dd><span class="person"><?= avatar($ticket['requester']) ?><span><?= e($ticket['requester']) ?><?php if ($ticket['requester_organization']): ?><span class="ticket-sub"><?= e($ticket['requester_organization']) ?></span><?php endif; ?></span></span></dd></div>
                 <div><dt>Assigned to</dt><dd data-field="assignee"><span class="person"><?= avatar($ticket['assignee']) ?><?= e($ticket['assignee'] ?? 'Unassigned') ?></span></dd></div>
                 <?php if ($staff): ?>
                 <div><dt>SLA due</dt><dd data-field="sla"><?= e(format_time($ticket['due_at'])) ?><br><?= sla_badge($ticket['sla_state'], $ticket['due_at'], (int) $ticket['sla_hours']) ?> <span class="meta"><?= (int) $ticket['sla_hours'] ?>h target</span></dd></div>

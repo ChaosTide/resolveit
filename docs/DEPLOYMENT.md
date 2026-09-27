@@ -13,7 +13,7 @@
 
 ## 1. Scope
 
-This section exists to stop scope creep. **The scope is frozen as of September 27, 2026** (CR-06 to CR-10 approved the same day by the project owner). Anything not listed under 1.1 or 1.2 is out of scope until the team approves a change request (1.4).
+This section exists to stop scope creep. **The scope is frozen as of September 27, 2026** (CR-06 to CR-11 approved the same day by the project owner). Anything not listed under 1.1 or 1.2 is out of scope until the team approves a change request (1.4).
 
 ### 1.1 Baseline scope (the capstone requirements)
 
@@ -44,6 +44,7 @@ Each of these was requested or required after Phases 1–3 were planned. They ar
 | CR-07 | Dashboard (SLA tiles, my queue, needs-attention list, recent activity) and ticket list search, quick views, filters, sorting, and pagination | Requested on September 27, 2026; moves "search, filters, pagination" out of the deferred list | Keep |
 | CR-08 | Requesters and staff can reply on a ticket until it is closed | Requested on September 27, 2026 (a help desk needs two-way updates) | Keep |
 | CR-10 | Help desk features modelled on a commercial help desk (Spiceworks): *Waiting on requester* and *Past due* views, staff-set due dates, first-response and close-time tracking, requester departments, knowledge base with search and drafts, bulk assign/priority update, and CSV export of the ticket list (migration 005) | Requested by the project owner on September 27, 2026 | Keep; split-screen view and ads were not copied |
+| CR-11 | Sortable column headers; Refresh button and automatic list updates (every 30 s, only when something changed); split-screen view (list plus selected ticket); organizations as real records managed in Settings (replacing CR-10's free-text department, migration 006); Advanced Search page (keywords incl. replies, multi-status/priority, requester, assignee, organization, SLA, waiting, and created/updated/resolved/due date ranges, CSV export) | Requested by the project owner on September 27, 2026; implemented in the project's own code | Keep |
 | CR-09 | Bug fix: deactivating a user or resetting their password now signs them out immediately (`users.password_changed_at`, migration 004) | Security defect found during review | Keep |
 
 ### 1.3 Out of scope / deferred
@@ -76,6 +77,7 @@ ticket-system/
 │   ├── workflow.php         P2-FIX status workflow rules
 │   ├── reports.php          Report and ticket-list queries (SLA state, due times)
 │   ├── ui.php               Badges, SLA countdowns, ticket table, icons, pagination
+│   ├── tickets.php          Shared ticket query, sorting, CSV rows, auto-refresh stamp (CR-11)
 │   ├── audit.php            Admin audit log helper
 │   ├── validation.php       Input validation
 │   ├── db.php               SQL Server connection (PDO, Windows Authentication)
@@ -87,13 +89,14 @@ ticket-system/
 │   ├── tickets.php, ticket.php, ticket-create.php, ticket-edit.php
 │   ├── users.php, user-edit.php, reports.php, settings.php
 │   ├── tickets-bulk.php     Bulk assign / priority (CR-10)
+│   ├── search.php           Advanced search (CR-11)
 │   ├── kb.php, kb-article.php, kb-edit.php   Knowledge base (CR-10)
 │   ├── assets/style.css     Help desk theme (no external fonts or libraries)
 │   ├── assets/app.js        Live SLA countdowns and other enhancements
 │   └── partials/            Sidebar/top-bar layout
 ├── database/
 │   ├── schema.sql           Full schema for a new database
-│   └── migrations/          001 audit log, 002 SLA targets, 003 sign-in attempts, 004 password_changed_at, 005 help desk features
+│   └── migrations/          001 audit log, 002 SLA targets, 003 sign-in attempts, 004 password_changed_at, 005 help desk features, 006 organizations
 ├── deploy/
 │   ├── apache/              Apache site config and one-time setup script
 │   ├── tunnel/              Cloudflare tunnel start script (CR-04)
@@ -135,8 +138,8 @@ UNION ALL SELECT 'Active administrators', COUNT(*) FROM users u JOIN roles r ON 
 
 | Item | Expected |
 |---|---|
-| Tables | 11 (`roles, users, categories, priorities, statuses, tickets, ticket_notes, ticket_history, admin_audit_log, login_attempts, kb_articles`) |
-| Foreign keys | 13 |
+| Tables | 12 (`roles, organizations, users, categories, priorities, statuses, tickets, ticket_notes, ticket_history, admin_audit_log, login_attempts, kb_articles`) |
+| Foreign keys | 14 |
 | Statuses | 5 (sort order 1–5) |
 | Priorities | 4, each with an SLA target |
 | Active categories | 1 or more |
@@ -149,6 +152,7 @@ sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\002_priority_sla.sql
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\003_login_attempts.sql
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\004_password_changed_at.sql
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\005_help_desk_features.sql
+sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\006_organizations.sql
 ```
 
 ### Configuration
@@ -189,7 +193,7 @@ sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\005_help_desk_featur
 ```powershell
 .\tests\check-local.ps1 -AdminPassword '<admin password>'
 ```
-Expected: `All checks passed` (111 checks as of September 27, 2026). The script creates temporary QA accounts and tickets and deletes them when it finishes.
+Expected: `All checks passed` (137 checks as of September 27, 2026). The script creates temporary QA accounts and tickets and deletes them when it finishes.
 
 ### 5.2 Manual acceptance tests
 
@@ -228,7 +232,14 @@ Expected: `All checks passed` (111 checks as of September 27, 2026). The script 
 4. Click **Export CSV**. ✅ The file includes Response time, Close time, Due date, and Department.
 5. Write an article in **Knowledge Base**; save a second one as a draft. ✅ Employees can search and read the published one but not the draft; "Create a ticket" from an article pre-fills what was tried.
 
-**Test 7 – Access control (SEC)**
+**Test 7 – Sorting, live updates, split view, organizations, search (CR-11)**
+1. On **Tickets**, click the **Subject** header, then click it again. ✅ The list sorts A–Z, then Z–A, and the header shows an arrow.
+2. Keep **Tickets** open in one window and change a ticket in another. ✅ Within about 30 seconds the list updates on its own (or shows "Tickets have changed" if you have tickets ticked). **Refresh** updates it immediately.
+3. Click **Split view**, then a ticket. ✅ The ticket opens beside the list; replying there returns you to the same list. (On narrow screens rows open the full ticket page.)
+4. In **Settings → Organizations** add an organization, assign two users to it, then filter **Tickets** by it. ✅ Only their tickets show, and the organization appears on each ticket.
+5. Open **Advanced search**, tick **Also search replies and notes**, and search for a word from a reply; add a date range and a status. ✅ Results narrow correctly and **Export CSV** matches them.
+
+**Test 8 – Access control (SEC)**
 1. Sign in as an employee and open `/users.php`, `/reports.php`, and `/settings.php` directly.
 2. ✅ Each returns **403 Forbidden**. (Pages are not redirected to a dashboard; 403 is the intended behavior.)
 3. ✅ Five wrong passwords for one account show "Too many failed sign-in attempts"; other accounts still sign in.
@@ -268,11 +279,12 @@ Logs: `C:\Users\draft\AppData\Local\CodexTicketSystem\Apache24\logs\` (`cts4911_
 | CR-06/07/08 Modern UI, dashboard, search, replies | ✅ Complete | Automated checks (search, views, replies, dashboard) |
 | CR-09 Immediate sign-out fix | ✅ Complete | Automated checks (deactivation and password reset) |
 | CR-10 Help desk features | ✅ Complete | Automated checks (waiting, due dates, bulk update, CSV, knowledge base) |
-| Automated tests | ✅ 111/111 passing | `tests/check-local.ps1` |
+| CR-11 Sorting, live refresh, split view, organizations, advanced search | ✅ Complete | Automated checks + desktop screenshots |
+| Automated tests | ✅ 137/137 passing | `tests/check-local.ps1` |
 | Team accounts | ⚠️ **To do** | Only the administrator exists; create teammates in Manage Users |
 | Always-on hosting (CR-05) | ⏸ Deferred | Needs working Azure access |
 
-**Open items before calling deployment complete:** create the team accounts, and run Tests 1–7 once as a team.
+**Open items before calling deployment complete:** create the team accounts, and run Tests 1–8 once as a team.
 
 ---
 

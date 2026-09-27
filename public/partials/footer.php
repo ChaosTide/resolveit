@@ -1,3 +1,4 @@
+<?php if (!empty($partialView)) return; ?>
 <?php if (current_user()): ?>
     </main>
 </div>

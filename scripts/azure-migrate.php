@@ -23,8 +23,8 @@ if (!$pdo->query("SELECT OBJECT_ID('dbo.capstone_migrations')")->fetchColumn()) 
         foreach($names as $prefix=>$name) {
             $insert->execute([$name,$prefix.'@students.uwf.edu',password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT),$prefix==='jlb282'?'administrator':'employee']);
         }
-        // schema.sql already contains migrations 2-6 (audit log, SLA, login attempts, password_changed_at, help desk features), so mark them applied.
-        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3),(4),(5),(6)');
+        // schema.sql already contains migrations 2-7 (audit log, SLA, login attempts, password_changed_at, help desk features, organizations), so mark them applied.
+        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3),(4),(5),(6),(7)');
         $pdo->commit();
         echo "Cloud schema and six team accounts created.\n";
     } catch(Throwable $e) { $pdo->rollBack(); throw $e; }
@@ -66,6 +66,19 @@ $upgrades = [
           END",
           "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_ticket_due_date' AND object_id = OBJECT_ID(N'tickets'))
             CREATE INDEX idx_ticket_due_date ON tickets(due_date)"],
+    7 => ["IF OBJECT_ID(N'organizations', N'U') IS NULL
+            CREATE TABLE organizations (id INT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(100) NOT NULL CONSTRAINT uq_organizations_name UNIQUE,
+             active BIT NOT NULL CONSTRAINT df_organizations_active DEFAULT 1,
+             created_at DATETIME2(0) NOT NULL CONSTRAINT df_organizations_created DEFAULT SYSDATETIME())",
+          "IF COL_LENGTH(N'users', N'organization_id') IS NULL
+            ALTER TABLE users ADD organization_id INT NULL CONSTRAINT fk_users_organization FOREIGN KEY REFERENCES organizations(id)",
+          "IF COL_LENGTH(N'users', N'department') IS NOT NULL
+            EXEC(N'INSERT INTO organizations (name) SELECT DISTINCT LTRIM(RTRIM(department)) FROM users
+                   WHERE department IS NOT NULL AND LTRIM(RTRIM(department)) <> N'''' AND LTRIM(RTRIM(department)) NOT IN (SELECT name FROM organizations);
+                   UPDATE u SET organization_id = o.id FROM users u JOIN organizations o ON o.name = LTRIM(RTRIM(u.department)) WHERE u.organization_id IS NULL;
+                   ALTER TABLE users DROP COLUMN department;')",
+          "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_users_organization' AND object_id = OBJECT_ID(N'users'))
+            CREATE INDEX idx_users_organization ON users(organization_id)"],
 ];
 $applied = array_map('intval', $pdo->query('SELECT id FROM dbo.capstone_migrations')->fetchAll(PDO::FETCH_COLUMN));
 foreach ($upgrades as $id => $statements) {

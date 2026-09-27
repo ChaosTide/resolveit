@@ -42,6 +42,7 @@ function RemoveTestData($tag){
 DELETE FROM tickets WHERE title LIKE N'QA % $tag' OR requester_id IN (SELECT id FROM users WHERE email LIKE N'qa-%-$tag@example.test');
 DELETE FROM kb_articles WHERE title LIKE N'QA KB % $tag';
 DELETE FROM users WHERE email LIKE N'qa-%-$tag@example.test';
+DELETE FROM organizations WHERE name = N'QA Org $tag';
 DELETE FROM categories WHERE name = N'QA category $tag' AND id NOT IN (SELECT category_id FROM tickets);
 UPDATE priorities SET name = N'Low' WHERE name = N'Low QA';
 DELETE FROM login_attempts WHERE email LIKE N'qa-%-$tag@example.test';
@@ -64,11 +65,17 @@ Check 'Wrong password rejected' ($r.Content.Contains('incorrect'))
 # --- Accounts and access control ---
 $password=[guid]::NewGuid().ToString()+'!Aa9'
 $accounts=@{}
+$p=Request $admin 'settings.php?tab=organizations'
+$r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='org_add';name="QA Org $tag"}
+$orgId=[regex]::Match($r.Content,"name=`"id`" value=`"(\d+)`"><input name=`"name`" maxlength=`"100`" value=`"QA Org $tag`"").Groups[1].Value
+Check 'Add organization' ($orgId -ne '')
+$r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='org_add';name="QA Org $tag"}
+Check 'Duplicate organization rejected' ($r.Content.Contains('An organization with that name already exists'))
 foreach($role in @('employee','technician')){
     $email="qa-$role-$tag@example.test"
     $p=Request $admin 'users.php'
-    $r=Request $admin 'users.php' @{csrf_token=(Token $p);action='create';name="QA $role $tag";email=$email;password=$password;role=$role;department="QA Dept $tag"}
-    Check "Create $role account with department" ($r.Content.Contains($email) -and $r.Content.Contains("QA Dept $tag"))
+    $r=Request $admin 'users.php' @{csrf_token=(Token $p);action='create';name="QA $role $tag";email=$email;password=$password;role=$role;organization_id=$orgId}
+    Check "Create $role account in an organization" ($r.Content.Contains($email) -and $r.Content.Contains("QA Org $tag"))
     $accounts[$role]=SignIn $email $password
 }
 $employee=$accounts.employee; $tech=$accounts.technician
@@ -168,11 +175,11 @@ $usersPage=(Request $admin 'users.php').Content
 $employeeId=[regex]::Match($usersPage,"qa-employee-$tag@example\.test</td>.*?user-edit\.php\?id=(\d+)",'Singleline').Groups[1].Value
 Check 'Users page links to Edit' ($employeeId -ne '')
 $p=Request $admin "user-edit.php?id=$employeeId"
-$r=Request $admin "user-edit.php?id=$employeeId" @{csrf_token=(Token $p);id=$employeeId;name="QA employee renamed $tag";email="qa-employee-$tag@example.test";role='employee';password=''}
+$r=Request $admin "user-edit.php?id=$employeeId" @{csrf_token=(Token $p);id=$employeeId;name="QA employee renamed $tag";email="qa-employee-$tag@example.test";role='employee';organization_id=$orgId;password=''}
 Check 'Edit user name' ($r.Content.Contains("QA employee renamed $tag"))
 $newPassword=[guid]::NewGuid().ToString()+'!Bb8'
 $p=Request $admin "user-edit.php?id=$employeeId"
-$null=Request $admin "user-edit.php?id=$employeeId" @{csrf_token=(Token $p);id=$employeeId;name="QA employee renamed $tag";email="qa-employee-$tag@example.test";role='employee';password=$newPassword}
+$null=Request $admin "user-edit.php?id=$employeeId" @{csrf_token=(Token $p);id=$employeeId;name="QA employee renamed $tag";email="qa-employee-$tag@example.test";role='employee';organization_id=$orgId;password=$newPassword}
 Check 'Password reset signs out existing sessions' ((Request $employee 'tickets.php').Content.Contains('<h1>Sign in</h1>'))
 $employee=SignIn "qa-employee-$tag@example.test" $newPassword
 Check 'Reset user password' ((Request $employee 'tickets.php').Content.Contains("QA employee renamed $tag"))
@@ -285,6 +292,55 @@ Check 'Employee cannot write articles' ((Request $employee 'kb-edit.php').Status
 $r=Request $employee "kb-article.php?id=$kbId"
 Check 'Article view counts and escapes' ($r.StatusCode -eq 200 -and $r.Content.Contains('views'))
 Check 'Create ticket from article pre-fills what was tried' ((Request $employee "ticket-create.php?kb=$kbId").Content.Contains("QA KB reset Wi-Fi $tag"))
+
+# --- CR-11: sorting, live refresh, split view, organizations, advanced search ---
+$r=Request $admin 'tickets.php?sort=title&dir=asc'
+$posAccess=$r.Content.IndexOf("id=$other`">#$other</a>"); $posWorkflow=$r.Content.IndexOf("id=$id`">#$id</a>")
+Check 'Sort by subject A-Z' ($posAccess -ge 0 -and $posWorkflow -gt $posAccess -and $r.Content.Contains('aria-sort="ascending"'))
+$r=Request $admin 'tickets.php?sort=title&dir=desc'
+Check 'Sort by subject Z-A' ($r.Content.IndexOf("id=$id`">#$id</a>") -lt $r.Content.IndexOf("id=$other`">#$other</a>") -and $r.Content.Contains('aria-sort="descending"'))
+Check 'Column headers link to sorting' ($r.Content.Contains('data-sort-key="status"') -and $r.Content.Contains('data-sort-key="due"'))
+Check 'Employees cannot sort by staff-only columns' (-not (Request $employee 'tickets.php').Content.Contains('data-sort-key="requester"'))
+Check 'Unknown sort direction ignored' ((Request $admin 'tickets.php?sort=title&dir=sideways').StatusCode -eq 200)
+
+$s1=(Request $admin 'tickets.php?format=stamp').Content | ConvertFrom-Json
+Check 'Auto-refresh stamp endpoint returns JSON' ($s1.stamp -match '^[0-9a-f]{32}$')
+$p=Request $admin "ticket.php?id=$other"
+$null=Request $admin "ticket.php?id=$other" @{csrf_token=(Token $p);id=$other;note="Stamp change $tag"}
+$s2=(Request $admin 'tickets.php?format=stamp').Content | ConvertFrom-Json
+Check 'Stamp changes when a ticket changes' ($s2.stamp -ne $s1.stamp)
+Check 'Refresh button and auto-refresh toggle shown' ((Request $admin 'tickets.php').Content.Contains('data-refresh') -and (Request $admin 'tickets.php').Content.Contains('data-auto-refresh'))
+
+$r=Request $admin 'tickets.php?layout=split'
+Check 'Split view renders the ticket pane' ($r.Content.Contains('data-split-pane') -and $r.Content.Contains('List view'))
+$r=Request $admin "ticket.php?id=$id&partial=1"
+Check 'Ticket preview is a fragment without the page layout' ($r.StatusCode -eq 200 -and $r.Content.Contains('Open full page') -and -not $r.Content.Contains('class="sidebar"') -and -not $r.Content.Contains('<html'))
+Check 'Preview still enforces ticket access' ((Request $employee "ticket.php?id=$other&partial=1").StatusCode -eq 403)
+$p=Request $admin "ticket.php?id=$other"
+$r=Request $admin "ticket.php?id=$other" @{csrf_token=(Token $p);id=$other;note="Split reply $tag";back="tickets.php?layout=split&selected=$other"}
+Check 'Reply from split view returns to the list' ($r.Content.Contains('All Tickets') -and $r.Content.Contains('data-split-pane'))
+$r=Request $admin "ticket.php?id=$other" @{csrf_token=(Token $p);id=$other;note="Evil back $tag";back='https://evil.example/phish'}
+Check 'Reply ignores off-site return links' ($r.Content.Contains("Ticket #${other}:"))
+
+$r=Request $admin "tickets.php?organization=$orgId"
+Check 'Filter tickets by organization' ($r.Content.Contains("id=$id`">#$id</a>") -and -not $r.Content.Contains("id=$other`">#$other</a>"))
+Check 'Organization shown on the ticket' ((Request $admin "ticket.php?id=$id").Content.Contains("QA Org $tag"))
+Check 'Organization tab counts members' ([regex]::IsMatch((Request $admin 'settings.php?tab=organizations').Content,"value=`"QA Org $tag`".*?<td class=`"num`">2</td>",'Singleline'))
+
+$r=Request $admin ('search.php?q=' + [uri]::EscapeDataString("Technician reply $tag"))
+Check 'Advanced search skips notes unless asked' (-not $r.Content.Contains("id=$id`">#$id</a>"))
+$r=Request $admin ('search.php?in_notes=1&q=' + [uri]::EscapeDataString("Technician reply $tag"))
+Check 'Advanced search finds text in replies' ($r.Content.Contains("id=$id`">#$id</a>") -and $r.Content.Contains('1 ticket match'))
+$closedId=[regex]::Match($r.Content,'name="status\[\]" value="(\d+)"> Closed').Groups[1].Value
+$r=Request $admin ("search.php?status%5B%5D=$closedId&organization=$orgId")
+Check 'Search by status and organization' ($r.Content.Contains("id=$id`">#$id</a>") -and -not $r.Content.Contains("id=$other`">#$other</a>"))
+$today=Get-Date -Format yyyy-MM-dd
+Check 'Search by created date range' ((Request $admin "search.php?created_from=$today&created_to=$today").Content.Contains("id=$id`">#$id</a>") -and (Request $admin 'search.php?created_from=2020-01-01&created_to=2020-01-31').Content.Contains('0 tickets match'))
+Check 'Search by due date and SLA' ((Request $admin 'search.php?has_due=1&sla=Overdue').Content.Contains("id=$other`">#$other</a>"))
+Check 'Invalid search dates are ignored' ((Request $admin 'search.php?created_from=2026-02-30&updated_to=nope').StatusCode -eq 200)
+Check 'Employee search is limited to own tickets' (-not (Request $employee ('search.php?q=' + [uri]::EscapeDataString("QA access $tag"))).Content.Contains("id=$other`">#$other</a>"))
+$r=Request $admin "search.php?organization=$orgId&export=csv"
+Check 'Search results export to CSV with organization' ($r.ContentType -like 'text/csv*' -and $r.Content.Contains("QA Org $tag"))
 
 # --- Front end assets and deactivation ---
 $r=Request $anon 'assets/app.js'

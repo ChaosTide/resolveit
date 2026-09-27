@@ -10,8 +10,9 @@ $statuses = $pdo->query('SELECT id, name FROM statuses ORDER BY sort_order')->fe
 $priorities = $pdo->query('SELECT id, name FROM priorities ORDER BY sort_order DESC')->fetchAll();
 $categories = $pdo->query('SELECT id, name FROM categories ORDER BY name')->fetchAll();
 $technicians = $staff ? $pdo->query("SELECT u.id, u.name FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name IN ('technician','administrator') ORDER BY u.name")->fetchAll() : [];
+$organizations = $staff ? $pdo->query('SELECT id, name FROM organizations ORDER BY name')->fetchAll() : [];
 
-// Quick views (chips). Each maps to a WHERE fragment on the ticket_list_sql() row alias "q".
+// Quick views (chips). Each maps to a WHERE fragment on the ticket row alias "q".
 $views = ['all' => 'All', 'open' => 'Open', 'waiting' => $staff ? 'Waiting on requester' : 'Awaiting my reply'];
 if ($staff) $views += ['mine' => 'My queue', 'unassigned' => 'Unassigned', 'overdue' => 'SLA overdue', 'pastdue' => 'Past due'];
 $views += ['resolved' => 'Resolved', 'closed' => 'Closed'];
@@ -34,17 +35,11 @@ $filters = [
     'priority' => valid_id($_GET['priority'] ?? null),
     'category' => valid_id($_GET['category'] ?? null),
     'assignee' => $staff ? (in_array($_GET['assignee'] ?? '', ['me', 'none'], true) ? $_GET['assignee'] : valid_id($_GET['assignee'] ?? null)) : null,
+    'organization' => $staff ? valid_id($_GET['organization'] ?? null) : null,
 ];
-$sorts = ['updated' => 'Recently updated', 'newest' => 'Newest first', 'priority' => 'Highest priority'];
-if ($staff) $sorts = ['due' => 'SLA due soonest'] + $sorts;
-$sort = array_key_exists($_GET['sort'] ?? '', $sorts) ? $_GET['sort'] : ($staff ? 'due' : 'updated');
-$orderBy = [
-    // Unresolved tickets by due time first, then resolved/closed ones by most recent.
-    'due' => "CASE WHEN q.status_order < $resolvedOrder THEN 0 ELSE 1 END, CASE WHEN q.status_order < $resolvedOrder THEN q.due_at END, q.updated_at DESC",
-    'updated' => 'q.updated_at DESC',
-    'newest' => 'q.created_at DESC',
-    'priority' => 'q.priority_order DESC, q.created_at',
-][$sort];
+[$sort, $dir] = ticket_sort_from_query($_GET, $staff, $staff ? 'due' : 'updated');
+$orderBy = ticket_order_sql($sort, $dir, $resolvedOrder);
+$split = ($_GET['layout'] ?? '') === 'split';
 
 // Base scope: employees only ever see their own tickets.
 $scopeWhere = $staff ? ['1 = 1'] : ['q.requester_id = ?'];
@@ -54,7 +49,7 @@ $where = $scopeWhere; $params = $scopeParams;
 [$viewWhere, $viewParams] = $viewSql[$filters['view']];
 $where[] = $viewWhere; $params = array_merge($params, $viewParams);
 if ($filters['q'] !== '') {
-    $like = '%' . strtr($filters['q'], ['\\' => '\\\\', '%' => '\\%', '_' => '\\_', '[' => '\\[']) . '%';
+    $like = like_pattern($filters['q']);
     $idSearch = ltrim($filters['q'], '#');
     if (ctype_digit($idSearch) && strlen($idSearch) < 10) {
         $where[] = "(q.id = ? OR q.title LIKE ? ESCAPE '\\' OR q.description LIKE ? ESCAPE '\\')";
@@ -64,16 +59,19 @@ if ($filters['q'] !== '') {
         array_push($params, $like, $like);
     }
 }
-foreach (['status' => 'q.status_id', 'priority' => 'q.priority_id', 'category' => 'q.category_id'] as $key => $column) {
+foreach (['status' => 'q.status_id', 'priority' => 'q.priority_id', 'category' => 'q.category_id', 'organization' => 'q.requester_organization_id'] as $key => $column) {
     if ($filters[$key]) { $where[] = "$column = ?"; $params[] = $filters[$key]; }
 }
 if ($filters['assignee'] === 'me') { $where[] = 'q.assigned_to = ?'; $params[] = $me; }
 elseif ($filters['assignee'] === 'none') { $where[] = 'q.assigned_to IS NULL'; }
 elseif ($filters['assignee']) { $where[] = 'q.assigned_to = ?'; $params[] = $filters['assignee']; }
 
-// The list query adds the raw ids and description that ticket_list_sql() does not expose.
-$list = 'SELECT l.*, t.status_id, t.priority_id, t.description FROM (' . ticket_list_sql() . ') l JOIN tickets t ON t.id = l.id';
+$list = ticket_query_sql();
 $whereSql = implode(' AND ', $where);
+
+// Automatic refresh: the page polls this and reloads the list only when something changed.
+if (($_GET['format'] ?? '') === 'stamp') send_stamp(ticket_stamp($pdo, $whereSql, $params));
+
 $count = $pdo->prepare("SELECT COUNT(*) FROM ($list) q WHERE $whereSql");
 $count->execute($params);
 $total = (int) $count->fetchColumn();
@@ -88,22 +86,10 @@ $tickets = $stmt->fetchAll();
 if (($_GET['export'] ?? '') === 'csv') {
     $all = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy");
     $all->execute($params);
-    $rows = array_map(function (array $t) {
-        $t['response_time'] = $t['response_minutes'] !== null ? duration_text((int) $t['response_minutes'] * 60) : '';
-        $t['close_time'] = $t['close_minutes'] !== null ? duration_text((int) $t['close_minutes'] * 60) : '';
-        $t['due_date'] = $t['due_date'] ? substr((string) $t['due_date'], 0, 10) : '';
-        $t['waiting'] = $t['waiting'] && $t['resolved_at'] === null ? 'Yes' : '';
-        return $t;
-    }, $all->fetchAll());
-    $columns = ['id' => 'ID', 'title' => 'Summary', 'requester' => 'Requester', 'requester_department' => 'Department',
-        'assignee' => 'Assignee', 'priority' => 'Priority', 'category' => 'Category', 'status' => 'Status', 'waiting' => 'Waiting on requester',
-        'created_at' => 'Created', 'updated_at' => 'Updated', 'due_date' => 'Due date', 'response_time' => 'Response time', 'close_time' => 'Close time'];
-    if ($staff) $columns += ['sla_state' => 'SLA', 'due_at' => 'SLA due'];
-    send_csv('cts4911-tickets-' . date('Y-m-d') . '.csv', $columns, $rows);
+    send_csv('cts4911-tickets-' . date('Y-m-d') . '.csv', ticket_csv_columns($staff), array_map('ticket_csv_row', $all->fetchAll()));
 }
 
 // Counts for the quick-view chips (within the user's scope, ignoring other filters).
-$chipCounts = [];
 $countSql = [];
 $countParams = [];
 foreach ($viewSql as $key => [$sql, $p]) {
@@ -115,10 +101,14 @@ $chips = $pdo->prepare('SELECT ' . implode(', ', $countSql) . " FROM ($list) q W
 $chips->execute(array_merge($countParams, $scopeParams));
 $chipCounts = array_map('intval', $chips->fetch() ?: []);
 
-$activeQuery = array_filter(['view' => $filters['view'] === 'all' ? null : $filters['view'], 'q' => $filters['q'] ?: null,
+// Filters that links (sorting, paging, export, layout toggle) should keep.
+$filterQuery = array_filter(['view' => $filters['view'] === 'all' ? null : $filters['view'], 'q' => $filters['q'] ?: null,
     'status' => $filters['status'], 'priority' => $filters['priority'], 'category' => $filters['category'],
-    'assignee' => $filters['assignee'], 'sort' => $sort], fn ($v) => $v !== null && $v !== '');
-$hasFilters = $filters['q'] !== '' || $filters['status'] || $filters['priority'] || $filters['category'] || $filters['assignee'];
+    'assignee' => $filters['assignee'], 'organization' => $filters['organization'], 'layout' => $split ? 'split' : null],
+    fn ($v) => $v !== null && $v !== '');
+$activeQuery = $filterQuery + ['sort' => $sort, 'dir' => $dir];
+$hasFilters = $filters['q'] !== '' || $filters['status'] || $filters['priority'] || $filters['category'] || $filters['assignee'] || $filters['organization'];
+$layoutToggle = ['layout' => $split ? null : 'split'] + $activeQuery;
 $pageTitle = $staff ? 'Tickets' : 'My Tickets'; require __DIR__ . '/partials/header.php';
 ?>
 <div class="page-header">
@@ -126,17 +116,23 @@ $pageTitle = $staff ? 'Tickets' : 'My Tickets'; require __DIR__ . '/partials/hea
         <h1><?= $staff ? 'All Tickets' : 'My Tickets' ?></h1>
         <p class="subtitle"><?= $staff ? 'Every request in the service desk, with live SLA status.' : 'Requests you have submitted to the IT help desk.' ?></p>
     </div>
-    <div class="page-actions"><a class="button" href="ticket-create.php"><?= icon('plus') ?>Create Ticket</a></div>
+    <div class="page-actions">
+        <a class="button secondary" href="search.php"><?= icon('search') ?>Advanced search</a>
+        <a class="button secondary hide-sm" href="tickets.php?<?= e(http_build_query(array_filter($layoutToggle, fn ($v) => $v !== null))) ?>" data-layout-toggle><?= icon('dashboard') ?><?= $split ? 'List view' : 'Split view' ?></a>
+        <a class="button" href="ticket-create.php"><?= icon('plus') ?>Create Ticket</a>
+    </div>
 </div>
 
-<nav class="quick-filters" aria-label="Quick views">
+<nav class="quick-filters" aria-label="Quick views" id="live-chips" data-live-region>
 <?php foreach ($views as $key => $label): ?>
-    <a class="chip" href="tickets.php?<?= e(http_build_query(array_filter(['view' => $key === 'all' ? null : $key, 'sort' => $sort]))) ?>"<?= $filters['view'] === $key ? ' aria-current="true"' : '' ?>><?= e($label) ?> <span class="count"><?= $chipCounts[$key] ?? 0 ?></span></a>
+    <a class="chip" href="tickets.php?<?= e(http_build_query(array_filter(['view' => $key === 'all' ? null : $key, 'sort' => $sort, 'dir' => $dir, 'layout' => $split ? 'split' : null]))) ?>"<?= $filters['view'] === $key ? ' aria-current="true"' : '' ?>><?= e($label) ?> <span class="count"><?= $chipCounts[$key] ?? 0 ?></span></a>
 <?php endforeach; ?>
 </nav>
 
 <form class="card filters" method="get" action="tickets.php">
     <?php if ($filters['view'] !== 'all'): ?><input type="hidden" name="view" value="<?= e($filters['view']) ?>"><?php endif; ?>
+    <?php if ($split): ?><input type="hidden" name="layout" value="split"><?php endif; ?>
+    <input type="hidden" name="dir" value="<?= e($dir) ?>">
     <div class="filter wide"><label for="f-q">Search</label><input id="f-q" type="search" name="q" value="<?= e($filters['q']) ?>" placeholder="Ticket #, title, or description"></div>
     <div class="filter"><label for="f-status">Status</label><select id="f-status" name="status" data-autosubmit><option value="">Any status</option>
         <?php foreach ($statuses as $s): ?><option value="<?= (int) $s['id'] ?>"<?= $filters['status'] === (int) $s['id'] ? ' selected' : '' ?>><?= e($s['name']) ?></option><?php endforeach; ?></select></div>
@@ -149,17 +145,15 @@ $pageTitle = $staff ? 'Tickets' : 'My Tickets'; require __DIR__ . '/partials/hea
         <option value="me"<?= $filters['assignee'] === 'me' ? ' selected' : '' ?>>Me</option>
         <option value="none"<?= $filters['assignee'] === 'none' ? ' selected' : '' ?>>Unassigned</option>
         <?php foreach ($technicians as $tech): ?><option value="<?= (int) $tech['id'] ?>"<?= $filters['assignee'] === (int) $tech['id'] ? ' selected' : '' ?>><?= e($tech['name']) ?></option><?php endforeach; ?></select></div>
+    <div class="filter"><label for="f-organization">Organization</label><select id="f-organization" name="organization" data-autosubmit><option value="">Any organization</option>
+        <?php foreach ($organizations as $o): ?><option value="<?= (int) $o['id'] ?>"<?= $filters['organization'] === (int) $o['id'] ? ' selected' : '' ?>><?= e($o['name']) ?></option><?php endforeach; ?></select></div>
     <?php endif; ?>
-    <div class="filter"><label for="f-sort">Sort</label><select id="f-sort" name="sort" data-autosubmit>
-        <?php foreach ($sorts as $key => $label): ?><option value="<?= $key ?>"<?= $sort === $key ? ' selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></div>
+    <div class="filter"><label for="f-sort">Sort</label><select id="f-sort" name="sort" data-autosubmit data-reset-dir>
+        <?php foreach (ticket_sort_options($staff) as $key => [$label]): if ($label === null && $sort !== $key) continue; ?><option value="<?= $key ?>"<?= $sort === $key ? ' selected' : '' ?>><?= e($label ?? ucfirst($key)) ?></option><?php endforeach; ?></select></div>
     <button type="submit"><?= icon('search') ?>Apply</button>
-    <?php if ($hasFilters): ?><a class="button secondary" href="tickets.php<?= $filters['view'] !== 'all' ? '?view=' . e($filters['view']) : '' ?>">Clear</a><?php endif; ?>
+    <?php if ($hasFilters): ?><a class="button secondary" href="tickets.php?<?= e(http_build_query(array_filter(['view' => $filters['view'] === 'all' ? null : $filters['view'], 'layout' => $split ? 'split' : null]))) ?>">Clear</a><?php endif; ?>
 </form>
 
-<div class="list-toolbar">
-    <p class="result-count"><?= $total ?> ticket<?= $total === 1 ? '' : 's' ?><?= $hasFilters ? ' match your filters' : '' ?></p>
-    <a class="button secondary small" href="tickets.php?<?= e(http_build_query($activeQuery + ['export' => 'csv'])) ?>"><?= icon('download') ?>Export CSV</a>
-</div>
 <?php if ($staff): ?>
 <form id="bulk-form" class="card bulk-bar" method="post" action="tickets-bulk.php" data-bulk-form>
     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
@@ -170,9 +164,31 @@ $pageTitle = $staff ? 'Tickets' : 'My Tickets'; require __DIR__ . '/partials/hea
     <select name="priority_id" aria-label="Set priority of selected tickets"><option value="">Priority… (no change)</option>
         <?php foreach ($priorities as $p): ?><option value="<?= (int) $p['id'] ?>"><?= e($p['name']) ?></option><?php endforeach; ?></select>
     <button type="submit" class="small">Apply to selected</button>
-    <span class="meta">Select tickets with the checkboxes. Status changes stay one ticket at a time so the workflow is enforced.</span>
+    <span class="meta">Status changes stay one ticket at a time so the workflow is enforced.</span>
 </form>
 <?php endif; ?>
-<?= ticket_table($tickets, $staff, $hasFilters || $filters['view'] !== 'all' ? 'No tickets match these filters.' : 'No tickets found.', $staff) ?>
-<?= pagination($page, $pages, $activeQuery) ?>
+
+<div class="<?= $split ? 'split-layout' : '' ?>">
+    <div class="<?= $split ? 'split-list' : '' ?>">
+        <div id="live-results" data-live-region data-stamp="<?= e(ticket_stamp($pdo, $whereSql, $params)) ?>">
+            <div class="list-toolbar">
+                <p class="result-count"><?= $total ?> ticket<?= $total === 1 ? '' : 's' ?><?= $hasFilters ? ' match your filters' : '' ?></p>
+                <div class="toolbar-actions">
+                    <span class="meta live-status" data-live-status>Updated <?= e(date('g:i A')) ?></span>
+                    <label class="checkbox-label auto-refresh"><input type="checkbox" data-auto-refresh checked> Auto-refresh</label>
+                    <a class="button secondary small" href="tickets.php?<?= e(http_build_query($activeQuery)) ?>" data-refresh title="Refresh the list">&#x21bb; Refresh</a>
+                    <a class="button secondary small" href="tickets.php?<?= e(http_build_query($activeQuery + ['export' => 'csv'])) ?>"><?= icon('download') ?>Export CSV</a>
+                </div>
+            </div>
+            <?= ticket_table($tickets, $staff, $hasFilters || $filters['view'] !== 'all' ? 'No tickets match these filters.' : 'No tickets found.', $staff, ['key' => $sort, 'dir' => $dir, 'query' => $filterQuery]) ?>
+            <?= pagination($page, $pages, $activeQuery) ?>
+        </div>
+    </div>
+    <?php if ($split): ?>
+    <aside class="split-pane card" id="split-pane" aria-live="polite" data-split-pane>
+        <div class="empty-state"><?= icon('tickets') ?><p>Select a ticket to see it here.</p></div>
+    </aside>
+    <?php endif; ?>
+</div>
+<div class="update-banner" data-update-banner hidden><span>Tickets have changed.</span> <button type="button" class="small" data-refresh-now>Refresh now</button></div>
 <?php require __DIR__ . '/partials/footer.php'; ?>
