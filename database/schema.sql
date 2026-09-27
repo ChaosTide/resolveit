@@ -13,6 +13,7 @@ CREATE TABLE users (
  active BIT NOT NULL CONSTRAINT df_users_active DEFAULT 1,
  created_at DATETIME2(0) NOT NULL CONSTRAINT df_users_created DEFAULT SYSDATETIME(),
  password_changed_at DATETIME2(0) NULL,
+ department NVARCHAR(100) NULL,
  CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 CREATE TABLE categories (id SMALLINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(80) NOT NULL UNIQUE, active BIT NOT NULL CONSTRAINT df_categories_active DEFAULT 1);
@@ -26,6 +27,7 @@ CREATE TABLE tickets (
  created_at DATETIME2(0) NOT NULL CONSTRAINT df_tickets_created DEFAULT SYSDATETIME(),
  updated_at DATETIME2(0) NOT NULL CONSTRAINT df_tickets_updated DEFAULT SYSDATETIME(),
  resolved_at DATETIME2(0) NULL, closed_at DATETIME2(0) NULL,
+ due_date DATE NULL, first_response_at DATETIME2(0) NULL,
  CONSTRAINT fk_ticket_requester FOREIGN KEY (requester_id) REFERENCES users(id),
  CONSTRAINT fk_ticket_assignee FOREIGN KEY (assigned_to) REFERENCES users(id),
  CONSTRAINT fk_ticket_category FOREIGN KEY (category_id) REFERENCES categories(id),
@@ -36,6 +38,7 @@ CREATE INDEX idx_ticket_requester ON tickets(requester_id);
 CREATE INDEX idx_ticket_assignee ON tickets(assigned_to);
 CREATE INDEX idx_ticket_status_priority ON tickets(status_id, priority_id);
 CREATE INDEX idx_ticket_created ON tickets(created_at);
+CREATE INDEX idx_ticket_due_date ON tickets(due_date);
 CREATE TABLE ticket_notes (
  id BIGINT IDENTITY(1,1) PRIMARY KEY, ticket_id INT NOT NULL, author_id INT NOT NULL,
  note NVARCHAR(MAX) NOT NULL, created_at DATETIME2(0) NOT NULL CONSTRAINT df_notes_created DEFAULT SYSDATETIME(),
@@ -64,6 +67,17 @@ CREATE TABLE login_attempts (
 );
 CREATE INDEX idx_login_attempts_email ON login_attempts(email, created_at);
 CREATE INDEX idx_login_attempts_ip ON login_attempts(ip, created_at);
+CREATE TABLE kb_articles (
+ id INT IDENTITY(1,1) PRIMARY KEY, title NVARCHAR(200) NOT NULL, body NVARCHAR(MAX) NOT NULL,
+ category_id SMALLINT NULL, author_id INT NOT NULL,
+ published BIT NOT NULL CONSTRAINT df_kb_published DEFAULT 1,
+ views INT NOT NULL CONSTRAINT df_kb_views DEFAULT 0,
+ created_at DATETIME2(0) NOT NULL CONSTRAINT df_kb_created DEFAULT SYSDATETIME(),
+ updated_at DATETIME2(0) NOT NULL CONSTRAINT df_kb_updated DEFAULT SYSDATETIME(),
+ CONSTRAINT fk_kb_category FOREIGN KEY (category_id) REFERENCES categories(id),
+ CONSTRAINT fk_kb_author FOREIGN KEY (author_id) REFERENCES users(id)
+);
+CREATE INDEX idx_kb_published ON kb_articles(published, updated_at);
 INSERT INTO roles (name) VALUES (N'employee'), (N'technician'), (N'administrator');
 INSERT INTO categories (name) VALUES (N'Hardware'), (N'Software'), (N'Network'), (N'Account Access'), (N'Other');
 INSERT INTO priorities (name, sort_order, sla_hours) VALUES (N'Low',1,72), (N'Medium',2,24), (N'High',3,8), (N'Critical',4,4);

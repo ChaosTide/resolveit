@@ -26,6 +26,7 @@ $navActive = fn (array $pages) => in_array($currentPage, $pages, true) ? ' aria-
         <a href="dashboard.php"<?= $navActive(['dashboard.php']) ?>><?= icon('dashboard') ?>Dashboard</a>
         <a href="tickets.php"<?= $navActive(['tickets.php', 'ticket.php', 'ticket-edit.php']) ?>><?= icon('tickets') ?><?= has_role('employee') ? 'My Tickets' : 'Tickets' ?></a>
         <a href="ticket-create.php"<?= $navActive(['ticket-create.php']) ?>><?= icon('plus') ?>New Ticket</a>
+        <a href="kb.php"<?= $navActive(['kb.php', 'kb-article.php', 'kb-edit.php']) ?>><?= icon('book') ?>Knowledge Base</a>
         <?php if (has_role('administrator')): ?>
             <p class="nav-heading">Administration</p>
             <a href="users.php"<?= $navActive(['users.php', 'user-edit.php']) ?>><?= icon('users') ?>Manage Users</a>

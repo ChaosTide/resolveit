@@ -4,6 +4,17 @@ require_login();
 $categories = $pdo->query('SELECT id, name FROM categories WHERE active = 1 ORDER BY name')->fetchAll();
 $errors = [];
 $data = ['title' => '', 'description' => '', 'category_id' => null];
+// Arriving from a knowledge base article: note which article the requester already tried.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && ($kbId = valid_id($_GET['kb'] ?? null))) {
+    $kb = $pdo->prepare('SELECT title, category_id FROM kb_articles WHERE id = ? AND published = 1');
+    $kb->execute([$kbId]);
+    if ($kbRow = $kb->fetch()) {
+        $data['description'] = "I tried the knowledge base article \"{$kbRow['title']}\" but the problem is not fixed.
+
+";
+        $data['category_id'] = $kbRow['category_id'] === null ? null : (int) $kbRow['category_id'];
+    }
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     [$data, $errors] = validate_ticket_input($_POST);
@@ -48,6 +59,9 @@ $pageTitle = 'Create Ticket'; require __DIR__ . '/partials/header.php';
 </form>
 </section>
 <aside class="card">
+    <h2>Check the Knowledge Base first</h2>
+    <p class="meta">Many common problems (passwords, Wi-Fi, printers) have step-by-step fixes.</p>
+    <p><a class="button secondary small" href="kb.php"><?= icon('book') ?>Browse articles</a></p>
     <h2>Tips for a fast fix</h2>
     <ul class="meta">
         <li>Include the exact error message or a description of what you see.</li>

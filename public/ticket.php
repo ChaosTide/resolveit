@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         $pdo->prepare('INSERT INTO ticket_notes (ticket_id, author_id, note) VALUES (?, ?, ?)')->execute([$ticketId, current_user()['id'], $reply]);
         $pdo->prepare('UPDATE tickets SET updated_at = SYSDATETIME() WHERE id = ?')->execute([$ticketId]);
+        if ($staff) record_first_response($pdo, $ticketId);
         $pdo->commit();
         flash('success', 'Reply added.'); redirect('ticket.php?id=' . $ticketId . '#conversation');
     }
@@ -97,15 +98,19 @@ $pageTitle = 'Ticket #' . $ticketId; require __DIR__ . '/partials/header.php';
                 <div><dt>Status</dt><dd data-field="status"><?= status_badge($ticket['status']) ?></dd></div>
                 <div><dt>Priority</dt><dd data-field="priority"><?= priority_badge($ticket['priority'], (int) $ticket['priority_order']) ?></dd></div>
                 <div><dt>Category</dt><dd><?= e($ticket['category']) ?></dd></div>
-                <div><dt>Requester</dt><dd><span class="person"><?= avatar($ticket['requester']) ?><?= e($ticket['requester']) ?></span></dd></div>
+                <div><dt>Requester</dt><dd><span class="person"><?= avatar($ticket['requester']) ?><span><?= e($ticket['requester']) ?><?php if ($ticket['requester_department']): ?><span class="ticket-sub"><?= e($ticket['requester_department']) ?></span><?php endif; ?></span></span></dd></div>
                 <div><dt>Assigned to</dt><dd data-field="assignee"><span class="person"><?= avatar($ticket['assignee']) ?><?= e($ticket['assignee'] ?? 'Unassigned') ?></span></dd></div>
                 <?php if ($staff): ?>
                 <div><dt>SLA due</dt><dd data-field="sla"><?= e(format_time($ticket['due_at'])) ?><br><?= sla_badge($ticket['sla_state'], $ticket['due_at'], (int) $ticket['sla_hours']) ?> <span class="meta"><?= (int) $ticket['sla_hours'] ?>h target</span></dd></div>
                 <?php endif; ?>
+                <div><dt>Due date</dt><dd data-field="due-date"><?= $ticket['due_date'] ? e(date('M j, Y', strtotime((string) $ticket['due_date']))) . ($ticket['past_due'] ? ' <span class="sla sla-overdue">Past due</span>' : '') : '<span class="meta">None</span>' ?></dd></div>
+                <?php if ($staff): ?>
+                <div><dt>First response</dt><dd data-field="response"><?= $ticket['response_minutes'] !== null ? e(duration_text((int) $ticket['response_minutes'] * 60)) : '<span class="meta">Waiting for IT</span>' ?></dd></div>
+                <?php endif; ?>
                 <div><dt>Created</dt><dd><?= e(format_time($ticket['created_at'])) ?></dd></div>
                 <div><dt>Updated</dt><dd><?= relative_time($ticket['updated_at']) ?></dd></div>
                 <?php if ($ticket['resolved_at']): ?><div><dt>Resolved</dt><dd><?= e(format_time($ticket['resolved_at'])) ?></dd></div><?php endif; ?>
-                <?php if ($ticket['closed_at']): ?><div><dt>Closed</dt><dd><?= e(format_time($ticket['closed_at'])) ?></dd></div><?php endif; ?>
+                <?php if ($ticket['closed_at']): ?><div><dt>Closed</dt><dd><?= e(format_time($ticket['closed_at'])) ?> <span class="meta">(<?= e(duration_text((int) $ticket['close_minutes'] * 60)) ?> to close)</span></dd></div><?php endif; ?>
             </dl>
         </section>
         <section class="card">

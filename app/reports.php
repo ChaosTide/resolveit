@@ -13,19 +13,35 @@ const SLA_STATE_SQL = "CASE WHEN t.resolved_at IS NOT NULL
 function ticket_sla_base(): string
 {
     return 'SELECT t.id, t.title, t.requester_id, t.assigned_to, t.category_id, t.created_at, t.updated_at, t.resolved_at, t.closed_at,
+        t.due_date, t.first_response_at, DATEDIFF(minute, t.created_at, t.first_response_at) AS response_minutes,
+        DATEDIFF(minute, t.created_at, t.closed_at) AS close_minutes,
         p.name AS priority, p.sort_order AS priority_order, p.sla_hours, s.name AS status, s.sort_order AS status_order,
         DATEADD(hour, p.sla_hours, t.created_at) AS due_at, ' . SLA_STATE_SQL . ' AS sla_state
         FROM tickets t JOIN priorities p ON p.id = t.priority_id JOIN statuses s ON s.id = t.status_id';
 }
 
-/** Ticket rows with SLA data plus requester, assignee, and category names, for ticket tables. */
+/**
+ * Ticket rows with SLA data plus requester (and department), assignee, and category names, for ticket tables.
+ * waiting = 1 when the latest reply came from IT staff, i.e. the ticket is waiting on the requester.
+ * past_due = 1 when a staff-set due date has passed on an unresolved ticket.
+ */
 function ticket_list_sql(): string
 {
-    return 'SELECT x.*, r.name AS requester, a.name AS assignee, c.name AS category
-        FROM (' . ticket_sla_base() . ') x
+    return "SELECT x.*, r.name AS requester, r.department AS requester_department, a.name AS assignee, c.name AS category,
+        CASE WHEN last_note.role IS NOT NULL AND last_note.role <> 'employee' THEN 1 ELSE 0 END AS waiting,
+        CASE WHEN x.due_date < CAST(SYSDATETIME() AS DATE) AND x.resolved_at IS NULL THEN 1 ELSE 0 END AS past_due
+        FROM (" . ticket_sla_base() . ") x
         JOIN users r ON r.id = x.requester_id
         LEFT JOIN users a ON a.id = x.assigned_to
-        JOIN categories c ON c.id = x.category_id';
+        JOIN categories c ON c.id = x.category_id
+        OUTER APPLY (SELECT TOP 1 ro.name AS role FROM ticket_notes n JOIN users nu ON nu.id = n.author_id
+            JOIN roles ro ON ro.id = nu.role_id WHERE n.ticket_id = x.id ORDER BY n.created_at DESC, n.id DESC) last_note";
+}
+
+/** Marks the first time IT staff acted on a ticket (Response Time). No-op after the first time. */
+function record_first_response(PDO $pdo, int $ticketId): void
+{
+    $pdo->prepare('UPDATE tickets SET first_response_at = SYSDATETIME() WHERE id = ? AND first_response_at IS NULL')->execute([$ticketId]);
 }
 
 /**

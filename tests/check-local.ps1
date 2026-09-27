@@ -40,6 +40,7 @@ function RemoveTestData($tag){
     if($KeepData){ Write-Output "Kept QA data tagged $tag."; return }
     $sql="SET NOCOUNT ON; SET XACT_ABORT ON; BEGIN TRAN;
 DELETE FROM tickets WHERE title LIKE N'QA % $tag' OR requester_id IN (SELECT id FROM users WHERE email LIKE N'qa-%-$tag@example.test');
+DELETE FROM kb_articles WHERE title LIKE N'QA KB % $tag';
 DELETE FROM users WHERE email LIKE N'qa-%-$tag@example.test';
 DELETE FROM categories WHERE name = N'QA category $tag' AND id NOT IN (SELECT category_id FROM tickets);
 UPDATE priorities SET name = N'Low' WHERE name = N'Low QA';
@@ -66,8 +67,8 @@ $accounts=@{}
 foreach($role in @('employee','technician')){
     $email="qa-$role-$tag@example.test"
     $p=Request $admin 'users.php'
-    $r=Request $admin 'users.php' @{csrf_token=(Token $p);action='create';name="QA $role $tag";email=$email;password=$password;role=$role}
-    Check "Create $role account" ($r.Content.Contains($email))
+    $r=Request $admin 'users.php' @{csrf_token=(Token $p);action='create';name="QA $role $tag";email=$email;password=$password;role=$role;department="QA Dept $tag"}
+    Check "Create $role account with department" ($r.Content.Contains($email) -and $r.Content.Contains("QA Dept $tag"))
     $accounts[$role]=SignIn $email $password
 }
 $employee=$accounts.employee; $tech=$accounts.technician
@@ -97,6 +98,9 @@ Check 'Requester can reply to own ticket' ($r.Content.Contains('Reply added') -a
 $p=Request $tech "ticket.php?id=$id"
 $r=Request $tech "ticket.php?id=$id" @{csrf_token=(Token $p);id=$id;note="Technician reply $tag"}
 Check 'Staff reply is labeled IT Staff' ([regex]::IsMatch($r.Content,'IT Staff</span>.*?Technician reply','Singleline'))
+Check 'Staff reply records first response time' (-not $r.Content.Contains('Waiting for IT') -and $r.Content.Contains('data-field="response"'))
+Check 'Ticket waits on requester after IT replies' ((Request $tech 'tickets.php?view=waiting').Content.Contains("id=$id`">#$id</a>"))
+Check 'Requester sees it under Awaiting my reply' ((Request $employee 'tickets.php?view=waiting').Content.Contains("id=$id`">#$id</a>"))
 $p=Request $employee "ticket.php?id=$id"
 $r=Request $employee "ticket.php?id=$id" @{csrf_token=(Token $p);id=$id;note='x'}
 Check 'Too-short reply rejected' ($r.Content.Contains('A reply must be between'))
@@ -133,6 +137,31 @@ $other=[regex]::Match($r.Content,'Ticket #(\d+):').Groups[1].Value
 Check 'Employee denied another owner ticket' ((Request $employee "ticket.php?id=$other").StatusCode -eq 403)
 $r=SetStatus $admin $other 5 $assignee
 Check 'Administrator also blocked from Open -> Closed' ($r.Content.Contains('Status cannot move from Open to Closed'))
+
+# --- Due dates, past due, bulk update, list export (CR-10) ---
+$yesterday=(Get-Date).AddDays(-1).ToString('yyyy-MM-dd')
+$p=Request $admin "ticket-edit.php?id=$other"
+$openId=[regex]::Match($p.Content,'<option value="(\d+)" data-name="Open"').Groups[1].Value
+$r=Request $admin "ticket-edit.php?id=$other" @{csrf_token=(Token $p);status_id=$openId;priority_id=2;assigned_to='';due_date='not-a-date';note='';resolution=''}
+Check 'Invalid due date rejected' ($r.Content.Contains('Enter the due date as a valid date'))
+$r=Request $admin "ticket-edit.php?id=$other" @{csrf_token=(Token $p);status_id=$openId;priority_id=2;assigned_to='';due_date=$yesterday;note='';resolution=''}
+Check 'Due date saved and shown as past due' ([regex]::IsMatch($r.Content,'data-field="due-date">[^<]*<span class="sla sla-overdue">Past due'))
+Check 'Staff edit records first response' (-not $r.Content.Contains('Waiting for IT'))
+Check 'Past due view lists the ticket' ((Request $admin 'tickets.php?view=pastdue').Content.Contains("id=$other`">#$other</a>"))
+Check 'History records the due date change' ($r.Content.Contains('due date changed: None &rarr; ' + $yesterday))
+$p=Request $admin 'tickets.php'
+Check 'Ticket list offers bulk update to staff' ($p.Content.Contains('id="bulk-form"') -and $p.Content.Contains('name="ids[]" value="' + $other + '"'))
+Check 'Employees get no bulk update' (-not (Request $employee 'tickets.php').Content.Contains('bulk-form'))
+$r=Request $admin 'tickets-bulk.php' @{csrf_token=(Token $p);'ids[]'=$other;assigned_to=$assignee;priority_id=3;return=''}
+$t=Request $admin "ticket.php?id=$other"
+Check 'Bulk assign and priority applied' ($r.Content.Contains('Updated 1 ticket') -and $t.Content.Contains("QA technician $tag") -and [regex]::IsMatch($t.Content,'data-field="priority">[^
+]*High'))
+$r=Invoke-WebRequest ($base+'tickets-bulk.php') -WebSession $admin -UseBasicParsing -Method Post -Body ("csrf_token=" + [uri]::EscapeDataString((Token $p)) + "&ids%5B%5D=$id&ids%5B%5D=$other&assigned_to=none&priority_id=&return=")
+Check 'Bulk unassign skips tickets that are not Open' ($r.Content.Contains('Updated 1 ticket') -and $r.Content.Contains("Skipped #$id"))
+Check 'Bulk update blocked for employees' ((Request $employee 'tickets-bulk.php' @{csrf_token='x';'ids[]'=$id;priority_id=1}).StatusCode -eq 403)
+$r=Request $admin 'tickets.php?export=csv'
+Check 'Ticket list exports to CSV' ($r.ContentType -like 'text/csv*' -and $r.Content.Contains('Response time') -and $r.Content.Contains('Close time') -and $r.Content -match "(?m)^$other,")
+Check 'Employee CSV export only has own tickets' (-not ((Request $employee 'tickets.php?export=csv').Content -match "(?m)^$other,"))
 
 # --- User editing ---
 $usersPage=(Request $admin 'users.php').Content
@@ -236,6 +265,26 @@ $cookie=(Invoke-WebRequest ($base+'login.php') -UseBasicParsing -Headers @{'X-Fo
 Check 'Session cookie is Secure behind the HTTPS tunnel' ($cookie -match '(?i);\s*secure')
 $cookie=(Invoke-WebRequest ($base+'login.php') -UseBasicParsing).Headers['Set-Cookie']
 Check 'Session cookie still works over local HTTP' ($cookie -and $cookie -notmatch '(?i);\s*secure')
+
+# --- Knowledge base (CR-10) ---
+$p=Request $tech 'kb-edit.php'
+$r=Request $tech 'kb-edit.php' @{csrf_token=(Token $p);title="QA KB reset Wi-Fi $tag";body="Step 1: forget the network. Step 2: reconnect with your campus login.";category_id=1;published=1}
+$kbId=[regex]::Match($r.Content,'kb-edit\.php\?id=(\d+)').Groups[1].Value
+Check 'Technician publishes an article' ($r.Content.Contains('Article published') -and $kbId -ne '')
+$p=Request $tech 'kb-edit.php'
+$r=Request $tech 'kb-edit.php' @{csrf_token=(Token $p);title="QA KB draft $tag";body="Internal notes that are not ready for requesters yet."}
+$draftId=[regex]::Match($r.Content,'kb-edit\.php\?id=(\d+)').Groups[1].Value
+Check 'Unticked article is saved as a draft' ($r.Content.Contains('Draft saved'))
+$r=Request $tech 'kb-edit.php' @{csrf_token=(Token $p);title='';body='short'}
+Check 'Invalid article rejected' ($r.Content.Contains('A title is required') -and $r.Content.Contains('between 20 and 20,000'))
+$r=Request $employee ('kb.php?q=' + [uri]::EscapeDataString("QA KB reset Wi-Fi $tag"))
+Check 'Employee finds published article by search' ($r.Content.Contains("kb-article.php?id=$kbId"))
+Check 'Employee cannot see drafts' (-not (Request $employee ('kb.php?q=' + [uri]::EscapeDataString("QA KB draft $tag"))).Content.Contains("kb-article.php?id=$draftId") -and (Request $employee "kb-article.php?id=$draftId").StatusCode -eq 404)
+Check 'Staff can see drafts' ((Request $tech "kb-article.php?id=$draftId").StatusCode -eq 200)
+Check 'Employee cannot write articles' ((Request $employee 'kb-edit.php').StatusCode -eq 403)
+$r=Request $employee "kb-article.php?id=$kbId"
+Check 'Article view counts and escapes' ($r.StatusCode -eq 200 -and $r.Content.Contains('views'))
+Check 'Create ticket from article pre-fills what was tried' ((Request $employee "ticket-create.php?kb=$kbId").Content.Contains("QA KB reset Wi-Fi $tag"))
 
 # --- Front end assets and deactivation ---
 $r=Request $anon 'assets/app.js'

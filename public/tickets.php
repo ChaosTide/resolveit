@@ -12,8 +12,8 @@ $categories = $pdo->query('SELECT id, name FROM categories ORDER BY name')->fetc
 $technicians = $staff ? $pdo->query("SELECT u.id, u.name FROM users u JOIN roles r ON r.id = u.role_id WHERE r.name IN ('technician','administrator') ORDER BY u.name")->fetchAll() : [];
 
 // Quick views (chips). Each maps to a WHERE fragment on the ticket_list_sql() row alias "q".
-$views = ['all' => 'All', 'open' => 'Open'];
-if ($staff) $views += ['mine' => 'My queue', 'unassigned' => 'Unassigned', 'overdue' => 'Overdue'];
+$views = ['all' => 'All', 'open' => 'Open', 'waiting' => $staff ? 'Waiting on requester' : 'Awaiting my reply'];
+if ($staff) $views += ['mine' => 'My queue', 'unassigned' => 'Unassigned', 'overdue' => 'SLA overdue', 'pastdue' => 'Past due'];
 $views += ['resolved' => 'Resolved', 'closed' => 'Closed'];
 $viewSql = [
     'all' => ['1 = 1', []],
@@ -21,6 +21,8 @@ $viewSql = [
     'mine' => ['q.status_order < ? AND q.assigned_to = ?', [$resolvedOrder, $me]],
     'unassigned' => ['q.status_order < ? AND q.assigned_to IS NULL', [$resolvedOrder]],
     'overdue' => ["q.status_order < ? AND q.sla_state = 'Overdue'", [$resolvedOrder]],
+    'waiting' => ['q.status_order < ? AND q.waiting = 1', [$resolvedOrder]],
+    'pastdue' => ['q.past_due = 1', []],
     'resolved' => ["q.status = 'Resolved'", []],
     'closed' => ["q.status = 'Closed'", []],
 ];
@@ -82,6 +84,24 @@ $stmt = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
 
+// CSV export of everything matching the current filters (not just this page).
+if (($_GET['export'] ?? '') === 'csv') {
+    $all = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy");
+    $all->execute($params);
+    $rows = array_map(function (array $t) {
+        $t['response_time'] = $t['response_minutes'] !== null ? duration_text((int) $t['response_minutes'] * 60) : '';
+        $t['close_time'] = $t['close_minutes'] !== null ? duration_text((int) $t['close_minutes'] * 60) : '';
+        $t['due_date'] = $t['due_date'] ? substr((string) $t['due_date'], 0, 10) : '';
+        $t['waiting'] = $t['waiting'] && $t['resolved_at'] === null ? 'Yes' : '';
+        return $t;
+    }, $all->fetchAll());
+    $columns = ['id' => 'ID', 'title' => 'Summary', 'requester' => 'Requester', 'requester_department' => 'Department',
+        'assignee' => 'Assignee', 'priority' => 'Priority', 'category' => 'Category', 'status' => 'Status', 'waiting' => 'Waiting on requester',
+        'created_at' => 'Created', 'updated_at' => 'Updated', 'due_date' => 'Due date', 'response_time' => 'Response time', 'close_time' => 'Close time'];
+    if ($staff) $columns += ['sla_state' => 'SLA', 'due_at' => 'SLA due'];
+    send_csv('cts4911-tickets-' . date('Y-m-d') . '.csv', $columns, $rows);
+}
+
 // Counts for the quick-view chips (within the user's scope, ignoring other filters).
 $chipCounts = [];
 $countSql = [];
@@ -136,7 +156,23 @@ $pageTitle = $staff ? 'Tickets' : 'My Tickets'; require __DIR__ . '/partials/hea
     <?php if ($hasFilters): ?><a class="button secondary" href="tickets.php<?= $filters['view'] !== 'all' ? '?view=' . e($filters['view']) : '' ?>">Clear</a><?php endif; ?>
 </form>
 
-<p class="result-count"><?= $total ?> ticket<?= $total === 1 ? '' : 's' ?><?= $hasFilters ? ' match your filters' : '' ?></p>
-<?= ticket_table($tickets, $staff, $hasFilters || $filters['view'] !== 'all' ? 'No tickets match these filters.' : 'No tickets found.') ?>
+<div class="list-toolbar">
+    <p class="result-count"><?= $total ?> ticket<?= $total === 1 ? '' : 's' ?><?= $hasFilters ? ' match your filters' : '' ?></p>
+    <a class="button secondary small" href="tickets.php?<?= e(http_build_query($activeQuery + ['export' => 'csv'])) ?>"><?= icon('download') ?>Export CSV</a>
+</div>
+<?php if ($staff): ?>
+<form id="bulk-form" class="card bulk-bar" method="post" action="tickets-bulk.php" data-bulk-form>
+    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+    <input type="hidden" name="return" value="<?= e(http_build_query($activeQuery)) ?>">
+    <strong class="bulk-count" data-bulk-count>Bulk update</strong>
+    <select name="assigned_to" aria-label="Assign selected tickets to"><option value="">Assign to… (no change)</option><option value="none">Unassigned</option>
+        <?php foreach ($technicians as $tech): ?><option value="<?= (int) $tech['id'] ?>"><?= e($tech['name']) ?></option><?php endforeach; ?></select>
+    <select name="priority_id" aria-label="Set priority of selected tickets"><option value="">Priority… (no change)</option>
+        <?php foreach ($priorities as $p): ?><option value="<?= (int) $p['id'] ?>"><?= e($p['name']) ?></option><?php endforeach; ?></select>
+    <button type="submit" class="small">Apply to selected</button>
+    <span class="meta">Select tickets with the checkboxes. Status changes stay one ticket at a time so the workflow is enforced.</span>
+</form>
+<?php endif; ?>
+<?= ticket_table($tickets, $staff, $hasFilters || $filters['view'] !== 'all' ? 'No tickets match these filters.' : 'No tickets found.', $staff) ?>
 <?= pagination($page, $pages, $activeQuery) ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>

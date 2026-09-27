@@ -17,6 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $statusId = valid_id($_POST['status_id'] ?? null); $priorityId = valid_id($_POST['priority_id'] ?? null);
     $assignedTo = ($_POST['assigned_to'] ?? '') === '' ? null : valid_id($_POST['assigned_to']);
     $note = clean_text($_POST['note'] ?? ''); $resolution = clean_text($_POST['resolution'] ?? '');
+    $dueInput = clean_text($_POST['due_date'] ?? '');
+    $dueDate = $dueInput === '' ? null : (DateTimeImmutable::createFromFormat('!Y-m-d', $dueInput) ?: false);
     $statusMap = array_column($statuses, 'name', 'id');
     $validPriorityIds = array_map('intval', array_column($priorities, 'id'));
     $validTechIds = array_map('intval', array_column($technicians, 'id'));
@@ -27,14 +29,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($assignedTo === null && $statusId && $statusMap[$statusId] !== 'Open') $errors[] = 'Only an Open ticket may remain unassigned.';
     if ($statusId && in_array($statusMap[$statusId], ['Resolved','Closed'], true) && mb_strlen($resolution) < 10) $errors[] = 'A resolution of at least 10 characters is required before resolving or closing.';
     if (mb_strlen($note) > 5000 || mb_strlen($resolution) > 5000) $errors[] = 'Notes and resolution must be 5,000 characters or fewer.';
+    if ($dueDate === false || ($dueDate && $dueDate->format('Y-m-d') !== $dueInput)) $errors[] = 'Enter the due date as a valid date, or leave it blank.';
+    $dueValue = $dueDate ? $dueDate->format('Y-m-d') : null;
     if (!$errors) {
         $pdo->beginTransaction();
         // Keep the original resolved/closed times when a ticket moves Resolved -> Closed; clear them on reopen.
         $resolvedAt = in_array($statusMap[$statusId], ['Resolved','Closed'], true) ? ($ticket['resolved_at'] ?? date('Y-m-d H:i:s')) : null;
         $closedAt = $statusMap[$statusId] === 'Closed' ? ($ticket['closed_at'] ?? date('Y-m-d H:i:s')) : null;
         // The status_id check stops two people from both advancing the same ticket from a stale page.
-        $update = $pdo->prepare('UPDATE tickets SET assigned_to=?, priority_id=?, status_id=?, resolution=?, resolved_at=?, closed_at=?, updated_at=SYSDATETIME() WHERE id=? AND status_id=?');
-        $update->execute([$assignedTo, $priorityId, $statusId, $resolution ?: null, $resolvedAt, $closedAt, $ticketId, $currentStatusId]);
+        $update = $pdo->prepare('UPDATE tickets SET assigned_to=?, priority_id=?, status_id=?, resolution=?, resolved_at=?, closed_at=?, due_date=?, updated_at=SYSDATETIME() WHERE id=? AND status_id=?');
+        $update->execute([$assignedTo, $priorityId, $statusId, $resolution ?: null, $resolvedAt, $closedAt, $dueValue, $ticketId, $currentStatusId]);
         if ($update->rowCount() !== 1) {
             $pdo->rollBack();
             $errors[] = 'Someone else changed this ticket\'s status while you were editing. Reload the page and try again.';
@@ -46,6 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($currentStatusId !== $statusId) $history->execute([$ticketId,current_user()['id'],'status changed',$statusMap[$currentStatusId],$statusMap[$statusId]]);
             if ((int)$ticket['priority_id'] !== $priorityId) $history->execute([$ticketId,current_user()['id'],'priority changed',$priorityMap[(int)$ticket['priority_id']] ?? null,$priorityMap[$priorityId]]);
             if ($oldAssignee !== $assignedTo) $history->execute([$ticketId,current_user()['id'],'assignment changed',$oldAssignee === null ? 'Unassigned' : ($userNames[$oldAssignee] ?? null),$assignedTo === null ? 'Unassigned' : $userNames[$assignedTo]]);
+            $oldDue = $ticket['due_date'] ? substr((string) $ticket['due_date'], 0, 10) : null;
+            if ($oldDue !== $dueValue) $history->execute([$ticketId,current_user()['id'],'due date changed',$oldDue ?? 'None',$dueValue ?? 'None']);
+            record_first_response($pdo, $ticketId);
             if ($note !== '') { $addNote=$pdo->prepare('INSERT INTO ticket_notes (ticket_id,author_id,note) VALUES (?,?,?)'); $addNote->execute([$ticketId,current_user()['id'],$note]); }
             $pdo->commit(); flash('success','Ticket updated.'); redirect('ticket.php?id='.$ticketId);
         }
@@ -74,6 +81,8 @@ $pageTitle='Manage Ticket'; require __DIR__.'/partials/header.php';
 <p class="field-hint">Every status after Open needs a technician.</p></div>
 <div><label for="priority_id">Priority</label><select id="priority_id" name="priority_id"><?php foreach($priorities as $priority): ?><option value="<?= (int)$priority['id'] ?>" <?= (int)$ticket['priority_id']===(int)$priority['id']?'selected':'' ?>><?= e($priority['name']) ?></option><?php endforeach; ?></select>
 <p class="field-hint">Changing priority changes the SLA target.</p></div>
+<div><label for="due_date">Due date</label><input id="due_date" name="due_date" type="date" value="<?= e($ticket['due_date'] ? substr((string) $ticket['due_date'], 0, 10) : '') ?>">
+<p class="field-hint">Optional. Tickets past this date show as Past Due.</p></div>
 </div>
 <label for="note">New technical note</label><textarea id="note" name="note" maxlength="5000" placeholder="Visible to the requester and IT staff."></textarea>
 <label for="resolution">Resolution</label><textarea id="resolution" name="resolution" maxlength="5000" placeholder="What fixed the problem?"><?= e($ticket['resolution']) ?></textarea>

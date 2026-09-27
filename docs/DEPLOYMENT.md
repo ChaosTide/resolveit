@@ -13,7 +13,7 @@
 
 ## 1. Scope
 
-This section exists to stop scope creep. **The scope is frozen as of September 27, 2026** (CR-06 to CR-09 approved the same day by the project owner). Anything not listed under 1.1 or 1.2 is out of scope until the team approves a change request (1.4).
+This section exists to stop scope creep. **The scope is frozen as of September 27, 2026** (CR-06 to CR-10 approved the same day by the project owner). Anything not listed under 1.1 or 1.2 is out of scope until the team approves a change request (1.4).
 
 ### 1.1 Baseline scope (the capstone requirements)
 
@@ -43,6 +43,7 @@ Each of these was requested or required after Phases 1–3 were planned. They ar
 | CR-06 | Modern help desk interface: sidebar navigation, top search bar, colour-coded status/priority/SLA badges, phone-friendly layout, and JavaScript enhancements (live SLA countdowns, clickable rows, instant filters, confirmation prompts, character counters) | Requested by the project owner on September 27, 2026 | Keep |
 | CR-07 | Dashboard (SLA tiles, my queue, needs-attention list, recent activity) and ticket list search, quick views, filters, sorting, and pagination | Requested on September 27, 2026; moves "search, filters, pagination" out of the deferred list | Keep |
 | CR-08 | Requesters and staff can reply on a ticket until it is closed | Requested on September 27, 2026 (a help desk needs two-way updates) | Keep |
+| CR-10 | Help desk features modelled on a commercial help desk (Spiceworks): *Waiting on requester* and *Past due* views, staff-set due dates, first-response and close-time tracking, requester departments, knowledge base with search and drafts, bulk assign/priority update, and CSV export of the ticket list (migration 005) | Requested by the project owner on September 27, 2026 | Keep; split-screen view and ads were not copied |
 | CR-09 | Bug fix: deactivating a user or resetting their password now signs them out immediately (`users.password_changed_at`, migration 004) | Security defect found during review | Keep |
 
 ### 1.3 Out of scope / deferred
@@ -85,12 +86,14 @@ ticket-system/
 │   ├── login.php, logout.php, index.php, dashboard.php
 │   ├── tickets.php, ticket.php, ticket-create.php, ticket-edit.php
 │   ├── users.php, user-edit.php, reports.php, settings.php
+│   ├── tickets-bulk.php     Bulk assign / priority (CR-10)
+│   ├── kb.php, kb-article.php, kb-edit.php   Knowledge base (CR-10)
 │   ├── assets/style.css     Help desk theme (no external fonts or libraries)
 │   ├── assets/app.js        Live SLA countdowns and other enhancements
 │   └── partials/            Sidebar/top-bar layout
 ├── database/
 │   ├── schema.sql           Full schema for a new database
-│   └── migrations/          001 audit log, 002 SLA targets, 003 sign-in attempts, 004 password_changed_at
+│   └── migrations/          001 audit log, 002 SLA targets, 003 sign-in attempts, 004 password_changed_at, 005 help desk features
 ├── deploy/
 │   ├── apache/              Apache site config and one-time setup script
 │   ├── tunnel/              Cloudflare tunnel start script (CR-04)
@@ -132,8 +135,8 @@ UNION ALL SELECT 'Active administrators', COUNT(*) FROM users u JOIN roles r ON 
 
 | Item | Expected |
 |---|---|
-| Tables | 10 (`roles, users, categories, priorities, statuses, tickets, ticket_notes, ticket_history, admin_audit_log, login_attempts`) |
-| Foreign keys | 11 |
+| Tables | 11 (`roles, users, categories, priorities, statuses, tickets, ticket_notes, ticket_history, admin_audit_log, login_attempts, kb_articles`) |
+| Foreign keys | 13 |
 | Statuses | 5 (sort order 1–5) |
 | Priorities | 4, each with an SLA target |
 | Active categories | 1 or more |
@@ -145,6 +148,7 @@ sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\001_admin_audit_log.
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\002_priority_sla.sql
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\003_login_attempts.sql
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\004_password_changed_at.sql
+sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\005_help_desk_features.sql
 ```
 
 ### Configuration
@@ -185,7 +189,7 @@ sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\004_password_changed
 ```powershell
 .\tests\check-local.ps1 -AdminPassword '<admin password>'
 ```
-Expected: `All checks passed` (87 checks as of September 27, 2026). The script creates temporary QA accounts and tickets and deletes them when it finishes.
+Expected: `All checks passed` (111 checks as of September 27, 2026). The script creates temporary QA accounts and tickets and deletes them when it finishes.
 
 ### 5.2 Manual acceptance tests
 
@@ -217,7 +221,14 @@ Expected: `All checks passed` (87 checks as of September 27, 2026). The script c
 3. ✅ The SLA column counts down (for example "3h 12m left"), turns amber when under a quarter of the target remains, and red when overdue.
 4. Open a ticket as its requester and post a reply. ✅ It appears under **Conversation**; staff replies carry an "IT Staff" tag.
 
-**Test 6 – Access control (SEC)**
+**Test 6 – Help desk features (CR-10)**
+1. As a technician reply on a ticket. ✅ It appears under **Waiting on requester**; when the requester replies it leaves that view. The ticket shows its **First response** time.
+2. On **Manage Ticket** set a due date in the past. ✅ The ticket shows **Past due** and appears in the **Past due** view.
+3. On **Tickets**, tick two tickets, choose an assignee and priority in **Bulk update**, and apply. ✅ Both change; unassigning skips tickets that are not Open.
+4. Click **Export CSV**. ✅ The file includes Response time, Close time, Due date, and Department.
+5. Write an article in **Knowledge Base**; save a second one as a draft. ✅ Employees can search and read the published one but not the draft; "Create a ticket" from an article pre-fills what was tried.
+
+**Test 7 – Access control (SEC)**
 1. Sign in as an employee and open `/users.php`, `/reports.php`, and `/settings.php` directly.
 2. ✅ Each returns **403 Forbidden**. (Pages are not redirected to a dashboard; 403 is the intended behavior.)
 3. ✅ Five wrong passwords for one account show "Too many failed sign-in attempts"; other accounts still sign in.
@@ -256,11 +267,12 @@ Logs: `C:\Users\draft\AppData\Local\CodexTicketSystem\Apache24\logs\` (`cts4911_
 | Team access (CR-04) | ✅ Live, PC-dependent | Public link verified over the internet |
 | CR-06/07/08 Modern UI, dashboard, search, replies | ✅ Complete | Automated checks (search, views, replies, dashboard) |
 | CR-09 Immediate sign-out fix | ✅ Complete | Automated checks (deactivation and password reset) |
-| Automated tests | ✅ 87/87 passing | `tests/check-local.ps1` |
+| CR-10 Help desk features | ✅ Complete | Automated checks (waiting, due dates, bulk update, CSV, knowledge base) |
+| Automated tests | ✅ 111/111 passing | `tests/check-local.ps1` |
 | Team accounts | ⚠️ **To do** | Only the administrator exists; create teammates in Manage Users |
 | Always-on hosting (CR-05) | ⏸ Deferred | Needs working Azure access |
 
-**Open items before calling deployment complete:** create the team accounts, and run Tests 1–6 once as a team.
+**Open items before calling deployment complete:** create the team accounts, and run Tests 1–7 once as a team.
 
 ---
 

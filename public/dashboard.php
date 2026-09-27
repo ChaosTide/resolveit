@@ -13,9 +13,11 @@ if ($staff) {
         SUM(CASE WHEN x.status_order < ? AND x.sla_state = 'Overdue' THEN 1 ELSE 0 END) AS overdue,
         SUM(CASE WHEN x.status_order < ? AND x.sla_state = 'On track' AND x.due_at <= DATEADD(hour, 4, SYSDATETIME()) THEN 1 ELSE 0 END) AS due_soon,
         SUM(CASE WHEN x.status_order < ? AND x.assigned_to = ? THEN 1 ELSE 0 END) AS mine,
-        SUM(CASE WHEN x.resolved_at >= CAST(SYSDATETIME() AS DATE) THEN 1 ELSE 0 END) AS resolved_today
-        FROM (" . ticket_sla_base() . ") x");
-    $stmt->execute([$resolvedOrder, $resolvedOrder, $resolvedOrder, $resolvedOrder, $resolvedOrder, $me]);
+        SUM(CASE WHEN x.resolved_at >= CAST(SYSDATETIME() AS DATE) THEN 1 ELSE 0 END) AS resolved_today,
+        SUM(CASE WHEN x.status_order < ? AND x.waiting = 1 THEN 1 ELSE 0 END) AS waiting,
+        SUM(CASE WHEN x.past_due = 1 THEN 1 ELSE 0 END) AS past_due
+        FROM (" . ticket_list_sql() . ") x");
+    $stmt->execute([$resolvedOrder, $resolvedOrder, $resolvedOrder, $resolvedOrder, $resolvedOrder, $me, $resolvedOrder]);
     $kpi = array_map('intval', $stmt->fetch());
 
     $queue = $pdo->prepare("SELECT TOP 10 * FROM ($list) q WHERE q.status_order < ? AND q.assigned_to = ? ORDER BY q.due_at");
@@ -65,6 +67,8 @@ $firstName = explode(' ', current_user()['name'])[0];
     <?= kpi_tile('Due in 4 hours', $kpi['due_soon'], 'clock', 'warning', 'tickets.php?view=open&sort=due', 'SLA deadline approaching') ?>
     <?= kpi_tile('My queue', $kpi['mine'], 'tickets', 'primary', 'tickets.php?view=mine', 'Assigned to you') ?>
     <?= kpi_tile('Resolved today', $kpi['resolved_today'], 'check', 'success', 'tickets.php?view=resolved', 'Nice work') ?>
+    <?= kpi_tile('Waiting on requester', $kpi['waiting'], 'clock', 'violet', 'tickets.php?view=waiting', 'IT replied last') ?>
+    <?= kpi_tile('Past due date', $kpi['past_due'], 'alert', 'danger', 'tickets.php?view=pastdue', 'Staff-set due date passed') ?>
 </div>
 
 <section class="card flush">

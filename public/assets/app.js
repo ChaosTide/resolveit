@@ -67,6 +67,28 @@
             });
         });
 
+        // Bulk update: "select all" checkbox and a live count of selected tickets.
+        var bulkForm = document.querySelector('[data-bulk-form]');
+        if (bulkForm) {
+            var boxes = document.querySelectorAll('input[name="ids[]"][form="bulk-form"]');
+            var counter = bulkForm.querySelector('[data-bulk-count]');
+            var syncCount = function () {
+                var n = Array.prototype.filter.call(boxes, function (b) { return b.checked; }).length;
+                counter.textContent = n ? n + ' selected' : 'Bulk update';
+                bulkForm.classList.toggle('has-selection', n > 0);
+            };
+            boxes.forEach(function (b) { b.addEventListener('change', syncCount); });
+            var all = document.querySelector('[data-select-all]');
+            if (all) all.addEventListener('change', function () {
+                boxes.forEach(function (b) { b.checked = all.checked; });
+                syncCount();
+            });
+            bulkForm.addEventListener('submit', function (event) {
+                var n = Array.prototype.filter.call(boxes, function (b) { return b.checked; }).length;
+                if (!n) { event.preventDefault(); window.alert('Select at least one ticket first.'); }
+            });
+        }
+
         // Filter dropdowns apply as soon as they change.
         document.querySelectorAll('[data-autosubmit]').forEach(function (field) {
             field.addEventListener('change', function () { field.form.submit(); });

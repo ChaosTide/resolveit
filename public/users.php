@@ -5,12 +5,13 @@ $errors=[];
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     verify_csrf(); $action=clean_text($_POST['action']??'');
     if ($action==='create') {
-        $name=clean_text($_POST['name']??''); $email=mb_strtolower(clean_text($_POST['email']??'')); $password=is_string($_POST['password']??null)?$_POST['password']:''; $role=clean_text($_POST['role']??'');
+        $name=clean_text($_POST['name']??''); $department=clean_text($_POST['department']??''); $email=mb_strtolower(clean_text($_POST['email']??'')); $password=is_string($_POST['password']??null)?$_POST['password']:''; $role=clean_text($_POST['role']??'');
         if ($name===''||mb_strlen($name)>100) $errors[]='Name is required and must be at most 100 characters.';
         if (!filter_var($email,FILTER_VALIDATE_EMAIL)||mb_strlen($email)>190) $errors[]='Enter a valid email.';
         if (strlen($password)<12) $errors[]='Password must be at least 12 characters.';
         if (!in_array($role,['employee','technician','administrator'],true)) $errors[]='Choose a valid role.';
-        if (!$errors) { try { $stmt=$pdo->prepare('INSERT INTO users (role_id,name,email,password_hash) SELECT id,?,?,? FROM roles WHERE name=?'); $stmt->execute([$name,$email,password_hash($password,PASSWORD_DEFAULT),$role]); audit_log($pdo,'user created',$email,"Role: $role"); flash('success','User created.'); redirect('users.php'); } catch(PDOException $ex) { $errors[]=$ex->getCode()==='23000'?'That email already exists.':'The user could not be created.'; } }
+        if (mb_strlen($department)>100) $errors[]='Department must be at most 100 characters.';
+        if (!$errors) { try { $stmt=$pdo->prepare('INSERT INTO users (role_id,name,email,password_hash,department) SELECT id,?,?,?,? FROM roles WHERE name=?'); $stmt->execute([$name,$email,password_hash($password,PASSWORD_DEFAULT),$department===''?null:$department,$role]); audit_log($pdo,'user created',$email,"Role: $role"); flash('success','User created.'); redirect('users.php'); } catch(PDOException $ex) { $errors[]=$ex->getCode()==='23000'?'That email already exists.':'The user could not be created.'; } }
     } elseif ($action==='toggle') {
         $userId=valid_id($_POST['user_id']??null); if (!$userId||$userId===(int)current_user()['id']) $errors[]='You cannot change this account.';
         if (!$errors) {
@@ -20,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         }
     }
 }
-$users=$pdo->query('SELECT u.id,u.name,u.email,u.active,u.created_at,r.name AS role FROM users u JOIN roles r ON r.id=u.role_id ORDER BY u.name')->fetchAll();
+$users=$pdo->query('SELECT u.id,u.name,u.email,u.department,u.active,u.created_at,r.name AS role FROM users u JOIN roles r ON r.id=u.role_id ORDER BY u.name')->fetchAll();
 $pageTitle='Manage Users'; require __DIR__.'/partials/header.php';
 ?>
 <div class="page-header">
@@ -33,12 +34,13 @@ $pageTitle='Manage Users'; require __DIR__.'/partials/header.php';
 <div><label for="new-name">Name</label><input id="new-name" name="name" maxlength="100" required></div>
 <div><label for="new-email">Email</label><input id="new-email" name="email" type="email" maxlength="190" required></div>
 <div><label for="new-password">Temporary password</label><input id="new-password" name="password" type="password" minlength="12" autocomplete="new-password" required><p class="field-hint">At least 12 characters. Share it privately.</p></div>
+<div><label for="new-department">Department</label><input id="new-department" name="department" maxlength="100" placeholder="e.g. Finance, Library"></div>
 <div><label for="new-role">Role</label><select id="new-role" name="role"><option value="employee">Employee (requester)</option><option value="technician">Technician</option><option value="administrator">Administrator</option></select></div>
 </div>
 <button><?= icon('plus') ?>Create User</button></form></section>
 <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>
 <?php foreach($users as $user): ?><tr>
-<td><span class="person"><?= avatar($user['name']) ?><span><?= e($user['name']) ?></span></span></td>
+<td><span class="person"><?= avatar($user['name']) ?><span><?= e($user['name']) ?><?php if ($user['department']): ?><span class="ticket-sub"><?= e($user['department']) ?></span><?php endif; ?></span></span></td>
 <td><?= e($user['email']) ?></td>
 <td><span class="badge<?= $user['role'] === 'administrator' ? ' status-assigned' : ($user['role'] === 'technician' ? ' status-open' : '') ?>"><?= e(ucfirst($user['role'])) ?></span></td>
 <td><?= $user['active'] ? '<span class="badge status-resolved">Active</span>' : '<span class="badge status-closed">Deactivated</span>' ?></td>

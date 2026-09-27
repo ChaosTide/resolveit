@@ -36,6 +36,25 @@ h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; }
 h2 { font-size: 1.05rem; font-weight: 650; }
 p { margin: 0 0 .75rem; }
 .icon { width: 18px; height: 18px; flex: none; }
+.waiting-tag { background: var(--violet-soft); color: var(--violet); }
+.due { color: var(--text-muted); }
+.due-past { color: var(--danger); font-weight: 700; }
+.list-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .75rem; }
+.list-toolbar .result-count { margin: 0; }
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .75rem 1rem; }
+.bulk-bar select { width: auto; min-width: 190px; padding: .45rem .6rem; }
+.bulk-bar button { margin-top: 0; }
+.bulk-bar.has-selection { border-color: var(--primary); background: var(--primary-soft); }
+.bulk-count { min-width: 7rem; }
+.check-col { width: 2.5rem; text-align: center; }
+.check-col input, .checkbox-label input { width: auto; }
+.checkbox-label { display: flex; align-items: center; gap: .5rem; font-weight: 500; }
+.kb-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+.kb-card { display: block; color: inherit; margin: 0; transition: transform .12s, box-shadow .12s; }
+.kb-card:hover { text-decoration: none; transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+.kb-card h2 { color: var(--primary); }
+.kb-excerpt { color: var(--text); }
+.kb-body { line-height: 1.7; font-size: 1rem; max-width: 860px; overflow-wrap: anywhere; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip-link { position: absolute; left: -999px; top: 0; background: var(--primary); color: #fff; padding: .5rem 1rem; z-index: 50; }
 .skip-link:focus { left: 1rem; }
@@ -162,7 +181,8 @@ tr[data-href] { cursor: pointer; }
 .card.flush > .table-wrap { margin: 0; border: 0; border-radius: 0; box-shadow: none; }
 .ticket-id { font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ticket-title { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
-.ticket-table td:nth-child(2) { min-width: 180px; }
+.ticket-table .subject-col { min-width: 240px; }
+.ticket-table .requester-col { max-width: 200px; }
 .ticket-sub { display: block; font-size: .8rem; color: var(--text-muted); margin-top: .1rem; }
 .person { display: inline-flex; align-items: center; gap: .45rem; min-width: 0; }
 .empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); }

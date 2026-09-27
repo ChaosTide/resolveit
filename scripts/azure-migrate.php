@@ -23,8 +23,8 @@ if (!$pdo->query("SELECT OBJECT_ID('dbo.capstone_migrations')")->fetchColumn()) 
         foreach($names as $prefix=>$name) {
             $insert->execute([$name,$prefix.'@students.uwf.edu',password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT),$prefix==='jlb282'?'administrator':'employee']);
         }
-        // schema.sql already contains migrations 2-5 (audit log, SLA, login attempts, password_changed_at), so mark them applied.
-        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3),(4),(5)');
+        // schema.sql already contains migrations 2-6 (audit log, SLA, login attempts, password_changed_at, help desk features), so mark them applied.
+        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3),(4),(5),(6)');
         $pdo->commit();
         echo "Cloud schema and six team accounts created.\n";
     } catch(Throwable $e) { $pdo->rollBack(); throw $e; }
@@ -51,6 +51,21 @@ $upgrades = [
             CREATE INDEX idx_login_attempts_ip ON login_attempts(ip, created_at);
           END"],
     5 => ["IF COL_LENGTH(N'users', N'password_changed_at') IS NULL ALTER TABLE users ADD password_changed_at DATETIME2(0) NULL"],
+    6 => ["IF COL_LENGTH(N'tickets', N'due_date') IS NULL ALTER TABLE tickets ADD due_date DATE NULL",
+          "IF COL_LENGTH(N'tickets', N'first_response_at') IS NULL ALTER TABLE tickets ADD first_response_at DATETIME2(0) NULL",
+          "IF COL_LENGTH(N'users', N'department') IS NULL ALTER TABLE users ADD department NVARCHAR(100) NULL",
+          "IF OBJECT_ID(N'kb_articles', N'U') IS NULL BEGIN
+            CREATE TABLE kb_articles (id INT IDENTITY(1,1) PRIMARY KEY, title NVARCHAR(200) NOT NULL, body NVARCHAR(MAX) NOT NULL,
+             category_id SMALLINT NULL, author_id INT NOT NULL, published BIT NOT NULL CONSTRAINT df_kb_published DEFAULT 1,
+             views INT NOT NULL CONSTRAINT df_kb_views DEFAULT 0,
+             created_at DATETIME2(0) NOT NULL CONSTRAINT df_kb_created DEFAULT SYSDATETIME(),
+             updated_at DATETIME2(0) NOT NULL CONSTRAINT df_kb_updated DEFAULT SYSDATETIME(),
+             CONSTRAINT fk_kb_category FOREIGN KEY (category_id) REFERENCES categories(id),
+             CONSTRAINT fk_kb_author FOREIGN KEY (author_id) REFERENCES users(id));
+            CREATE INDEX idx_kb_published ON kb_articles(published, updated_at);
+          END",
+          "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_ticket_due_date' AND object_id = OBJECT_ID(N'tickets'))
+            CREATE INDEX idx_ticket_due_date ON tickets(due_date)"],
 ];
 $applied = array_map('intval', $pdo->query('SELECT id FROM dbo.capstone_migrations')->fetchAll(PDO::FETCH_COLUMN));
 foreach ($upgrades as $id => $statements) {

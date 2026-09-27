@@ -108,6 +108,7 @@ function icon(string $name): string
         'inbox' => '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',
         'check' => '<path d="M20 6 9 17l-5-5"/>',
         'user' => '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+        'book' => '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
         'download' => '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
     ];
     return '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
@@ -116,27 +117,37 @@ function icon(string $name): string
 /**
  * Ticket table used by the dashboard and the ticket list. Rows come from ticket_list_sql().
  * Staff see requester and SLA columns; employees see their own tickets without SLA details.
+ * With $bulk, each row gets a checkbox tied to the form with id "bulk-form" (tickets.php).
  */
-function ticket_table(array $tickets, bool $staff, string $emptyText): string
+function ticket_table(array $tickets, bool $staff, string $emptyText, bool $bulk = false): string
 {
-    $html = '<div class="table-wrap"><table class="ticket-table"><thead><tr><th>ID</th><th>Subject</th>'
+    $html = '<div class="table-wrap"><table class="ticket-table"><thead><tr>'
+        . ($bulk ? '<th class="check-col"><input type="checkbox" data-select-all aria-label="Select all tickets on this page"></th>' : '')
+        . '<th>ID</th><th>Subject</th>'
         . ($staff ? '<th class="hide-sm">Requester</th>' : '')
         . '<th>Priority</th><th>Status</th><th class="hide-sm">Assigned to</th>'
         . ($staff ? '<th>SLA</th>' : '') . '<th class="hide-sm">Updated</th></tr></thead><tbody>';
     foreach ($tickets as $t) {
         $id = (int) $t['id'];
+        $open = $t['resolved_at'] === null;
+        $due = '';
+        if ($t['due_date']) {
+            $due = ' &middot; <span class="' . ($t['past_due'] ? 'due-past' : 'due') . '">' . ($t['past_due'] ? 'Past due ' : 'Due ') . e(date('M j', strtotime((string) $t['due_date']))) . '</span>';
+        }
         $html .= '<tr data-href="ticket.php?id=' . $id . '">'
+            . ($bulk ? '<td class="check-col"><input type="checkbox" name="ids[]" value="' . $id . '" form="bulk-form" aria-label="Select ticket #' . $id . '"></td>' : '')
             . '<td class="ticket-id"><a href="ticket.php?id=' . $id . '">#' . $id . '</a></td>'
-            . '<td><a class="ticket-title" href="ticket.php?id=' . $id . '">' . e($t['title']) . '</a><span class="ticket-sub">' . e($t['category']) . '</span></td>'
-            . ($staff ? '<td class="hide-sm"><span class="person">' . avatar($t['requester']) . e($t['requester']) . '</span></td>' : '')
+            . '<td class="subject-col"><a class="ticket-title" href="ticket.php?id=' . $id . '">' . e($t['title']) . '</a><span class="ticket-sub">' . e($t['category']) . $due . '</span></td>'
+            . ($staff ? '<td class="hide-sm requester-col"><span class="person">' . avatar($t['requester']) . '<span>' . e($t['requester'])
+                . ($t['requester_department'] ? '<span class="ticket-sub">' . e($t['requester_department']) . '</span>' : '') . '</span></span></td>' : '')
             . '<td>' . priority_badge($t['priority'], (int) $t['priority_order']) . '</td>'
-            . '<td>' . status_badge($t['status']) . '</td>'
+            . '<td>' . status_badge($t['status']) . ($open && $t['waiting'] ? ' <span class="badge waiting-tag" title="IT replied last; waiting on the requester">Waiting</span>' : '') . '</td>'
             . '<td class="hide-sm"><span class="person">' . avatar($t['assignee']) . e($t['assignee'] ?? 'Unassigned') . '</span></td>'
             . ($staff ? '<td>' . sla_badge($t['sla_state'], $t['due_at'], (int) $t['sla_hours']) . '</td>' : '')
             . '<td class="hide-sm">' . relative_time($t['updated_at']) . '</td></tr>';
     }
     if (!$tickets) {
-        $html .= '<tr><td colspan="' . ($staff ? 8 : 6) . '"><div class="empty-state">' . icon('inbox') . '<p>' . e($emptyText) . '</p></div></td></tr>';
+        $html .= '<tr><td colspan="' . (($staff ? 8 : 6) + ($bulk ? 1 : 0)) . '"><div class="empty-state">' . icon('inbox') . '<p>' . e($emptyText) . '</p></div></td></tr>';
     }
     return $html . '</tbody></table></div>';
 }
