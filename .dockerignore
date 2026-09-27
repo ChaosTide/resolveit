@@ -1,0 +1,8 @@
+.git
+LOCAL_LOGIN.txt
+app/config.php
+runtime/
+tests/
+deploy/apache/
+*.log
+*.md
