@@ -2,6 +2,8 @@
 
 This beginner-friendly PHP/Microsoft SQL Server prototype implements the capstone workflow described in the project source document. SQL Server is used because Jordan requested the local SSMS installation for hands-on testing.
 
+**Deploying or checking scope?** See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): the deployment guide, test procedures, and the frozen scope with its change log.
+
 ## 1. What the system does
 
 - Employees can sign in, create tickets, and view only their own tickets.
