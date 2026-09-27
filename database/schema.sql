@@ -12,6 +12,7 @@ CREATE TABLE users (
  email NVARCHAR(190) NOT NULL UNIQUE, password_hash NVARCHAR(255) NOT NULL,
  active BIT NOT NULL CONSTRAINT df_users_active DEFAULT 1,
  created_at DATETIME2(0) NOT NULL CONSTRAINT df_users_created DEFAULT SYSDATETIME(),
+ password_changed_at DATETIME2(0) NULL,
  CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 CREATE TABLE categories (id SMALLINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(80) NOT NULL UNIQUE, active BIT NOT NULL CONSTRAINT df_categories_active DEFAULT 1);

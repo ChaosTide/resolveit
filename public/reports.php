@@ -76,7 +76,7 @@ function render_report(array $report): void
 }
 $pageTitle = 'Reports'; require __DIR__ . '/partials/header.php';
 ?>
-<h1>Reports</h1>
+<div class="page-header"><div><h1>Reports</h1><p class="subtitle">Ticket volume, workload, and SLA performance. Every table exports to CSV.</p></div></div>
 <section class="card">
 <form method="get" class="range-form">
     <div><label for="from">From</label><input id="from" name="from" type="date" value="<?= e($from) ?>" required></div>

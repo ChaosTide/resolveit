@@ -62,7 +62,32 @@ function login_user(PDO $pdo, string $email, string $password): bool
         'email' => $user['email'],
         'role' => $user['role'],
     ];
+    $_SESSION['login_at'] = date('Y-m-d H:i:s');
     return true;
+}
+
+/**
+ * Re-reads the signed-in user on every request so a deactivation, password reset,
+ * or role change by an administrator takes effect immediately instead of at next sign-in.
+ */
+function refresh_session_user(PDO $pdo): void
+{
+    if (!isset($_SESSION['user']['id'])) {
+        return;
+    }
+    $stmt = $pdo->prepare('SELECT u.name, u.email, u.active, u.password_changed_at, r.name AS role
+        FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?');
+    $stmt->execute([$_SESSION['user']['id']]);
+    $user = $stmt->fetch();
+    $passwordChanged = $user && $user['password_changed_at'] !== null
+        && $user['password_changed_at'] > ($_SESSION['login_at'] ?? '1900-01-01 00:00:00');
+    if (!$user || !$user['active'] || $passwordChanged) {
+        $_SESSION = [];
+        session_regenerate_id(true);
+        $_SESSION['flash'] = ['type' => 'error', 'message' => 'You have been signed out because your account was changed. Please sign in again.'];
+        return;
+    }
+    $_SESSION['user'] = ['id' => (int) $_SESSION['user']['id'], 'name' => $user['name'], 'email' => $user['email'], 'role' => $user['role']];
 }
 
 function require_login(): void

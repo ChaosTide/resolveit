@@ -30,12 +30,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
             $update = $pdo->prepare('UPDATE users SET name=?, email=?, role_id=(SELECT id FROM roles WHERE name=?) WHERE id=?');
             $update->execute([$data['name'], $data['email'], $data['role'], $userId]);
+            $now = date('Y-m-d H:i:s');
             if ($password !== '') {
-                $pdo->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash($password, PASSWORD_DEFAULT), $userId]);
+                // password_changed_at signs the user out of every other session (app/auth.php refresh_session_user).
+                $pdo->prepare('UPDATE users SET password_hash=?, password_changed_at=? WHERE id=?')->execute([password_hash($password, PASSWORD_DEFAULT), $now, $userId]);
             }
             audit_log($pdo, 'user edited', $data['email'], implode('; ', $changes));
             $pdo->commit();
-            if ($isSelf) { $_SESSION['user']['name'] = $data['name']; $_SESSION['user']['email'] = $data['email']; }
+            if ($isSelf) {
+                $_SESSION['user']['name'] = $data['name']; $_SESSION['user']['email'] = $data['email'];
+                if ($password !== '') $_SESSION['login_at'] = $now; // keep the administrator's own session
+            }
             flash('success', 'User updated.'); redirect('users.php');
         } catch (PDOException $ex) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -45,8 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $pageTitle = 'Edit User'; require __DIR__ . '/partials/header.php';
 ?>
+<div class="page-header"><div><p class="breadcrumb"><a href="users.php">Manage Users</a> / Edit</p><h1>Edit user</h1><p class="subtitle"><?= e($user['name']) ?> &middot; <?= e($user['email']) ?></p></div></div>
 <section class="card" style="max-width: 640px">
-<h1>Edit user</h1>
 <p class="meta">Account is <?= $user['active'] ? 'active' : 'deactivated' ?>. Activate or deactivate it from <a href="users.php">Manage Users</a>.</p>
 <?php foreach ($errors as $error): ?><p class="errors"><?= e($error) ?></p><?php endforeach; ?>
 <form method="post">
@@ -56,8 +61,8 @@ $pageTitle = 'Edit User'; require __DIR__ . '/partials/header.php';
     <label for="role">Role</label>
     <select id="role" name="role" <?= $isSelf ? 'disabled' : '' ?>><?php foreach ($roles as $role): ?><option value="<?= $role ?>" <?= $data['role'] === $role ? 'selected' : '' ?>><?= ucfirst($role) ?></option><?php endforeach; ?></select>
     <?php if ($isSelf): ?><input type="hidden" name="role" value="<?= e($user['role']) ?>"><p class="meta">You cannot change your own role.</p><?php endif; ?>
-    <label for="password">New password (leave blank to keep the current one)</label><input id="password" name="password" type="password" minlength="12" autocomplete="new-password">
-    <button type="submit">Save User</button> <a class="button secondary" href="users.php">Cancel</a>
+    <label for="password">New password</label><input id="password" name="password" type="password" minlength="12" autocomplete="new-password"><p class="field-hint">Leave blank to keep the current password. Setting one signs this user out everywhere.</p>
+    <div class="form-actions"><button type="submit">Save User</button><a class="button secondary" href="users.php" style="margin-top:1rem">Cancel</a></div>
 </form>
 </section>
 <?php require __DIR__ . '/partials/footer.php'; ?>

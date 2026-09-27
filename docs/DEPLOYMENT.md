@@ -13,7 +13,7 @@
 
 ## 1. Scope
 
-This section exists to stop scope creep. **The scope is frozen as of September 27, 2026.** Anything not listed under 1.1 or 1.2 is out of scope until the team approves a change request (1.4).
+This section exists to stop scope creep. **The scope is frozen as of September 27, 2026** (CR-06 to CR-09 approved the same day by the project owner). Anything not listed under 1.1 or 1.2 is out of scope until the team approves a change request (1.4).
 
 ### 1.1 Baseline scope (the capstone requirements)
 
@@ -40,12 +40,16 @@ Each of these was requested or required after Phases 1–3 were planned. They ar
 | CR-03 | Sign-in lockout (5 wrong passwords per account or 20 per address in 15 minutes) and Secure session cookies | Required once the site became reachable from the internet | Keep (security necessity, not a feature) |
 | CR-04 | Share the Apache site through a Cloudflare quick tunnel | Team needs access; UWF Azure sign-in is blocked by an MFA error and the personal account has no Azure subscription | Keep as interim hosting |
 | CR-05 | Apache container image for Azure App Service (`deploy/docker`) | Prepared for an always-on server | Built and tested, **not deployed**; deferred until Azure access is fixed |
+| CR-06 | Modern help desk interface: sidebar navigation, top search bar, colour-coded status/priority/SLA badges, phone-friendly layout, and JavaScript enhancements (live SLA countdowns, clickable rows, instant filters, confirmation prompts, character counters) | Requested by the project owner on September 27, 2026 | Keep |
+| CR-07 | Dashboard (SLA tiles, my queue, needs-attention list, recent activity) and ticket list search, quick views, filters, sorting, and pagination | Requested on September 27, 2026; moves "search, filters, pagination" out of the deferred list | Keep |
+| CR-08 | Requesters and staff can reply on a ticket until it is closed | Requested on September 27, 2026 (a help desk needs two-way updates) | Keep |
+| CR-09 | Bug fix: deactivating a user or resetting their password now signs them out immediately (`users.password_changed_at`, migration 004) | Security defect found during review | Keep |
 
 ### 1.3 Out of scope / deferred
 
 These are **not** being built. Listing them here is the decision; raising them again requires a change request.
 
-- Phase 4 remainder: search, filters, and pagination on the ticket list; mobile-friendly layout; workflow customization UI (adding or reordering statuses)
+- Phase 4 remainder: workflow customization UI (adding or reordering statuses). Search/filters/pagination (CR-07) and a phone-friendly layout (CR-06) are now done.
 - Native mobile app
 - Email notifications and self-service password reset by email
 - Custom domain name or permanent public URL
@@ -69,7 +73,8 @@ ticket-system/
 │   ├── bootstrap.php        Loads config, starts the session, CSRF helpers
 │   ├── auth.php             Sign-in, sign-in lockout, role checks
 │   ├── workflow.php         P2-FIX status workflow rules
-│   ├── reports.php          Report queries shared by the page and CSV export
+│   ├── reports.php          Report and ticket-list queries (SLA state, due times)
+│   ├── ui.php               Badges, SLA countdowns, ticket table, icons, pagination
 │   ├── audit.php            Admin audit log helper
 │   ├── validation.php       Input validation
 │   ├── db.php               SQL Server connection (PDO, Windows Authentication)
@@ -77,13 +82,15 @@ ticket-system/
 │   ├── config.azure.php     Cloud settings from environment variables (CR-05)
 │   └── azure-auth.php       Microsoft sign-in for the cloud version (CR-05)
 ├── public/                  The only folder Apache serves
-│   ├── login.php, logout.php, index.php
+│   ├── login.php, logout.php, index.php, dashboard.php
 │   ├── tickets.php, ticket.php, ticket-create.php, ticket-edit.php
 │   ├── users.php, user-edit.php, reports.php, settings.php
-│   └── assets/, partials/
+│   ├── assets/style.css     Help desk theme (no external fonts or libraries)
+│   ├── assets/app.js        Live SLA countdowns and other enhancements
+│   └── partials/            Sidebar/top-bar layout
 ├── database/
 │   ├── schema.sql           Full schema for a new database
-│   └── migrations/          001 audit log, 002 SLA targets, 003 sign-in attempts
+│   └── migrations/          001 audit log, 002 SLA targets, 003 sign-in attempts, 004 password_changed_at
 ├── deploy/
 │   ├── apache/              Apache site config and one-time setup script
 │   ├── tunnel/              Cloudflare tunnel start script (CR-04)
@@ -137,6 +144,7 @@ A database created from an older `schema.sql` needs the migrations, in order (ea
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\001_admin_audit_log.sql
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\002_priority_sla.sql
 sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\003_login_attempts.sql
+sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\004_password_changed_at.sql
 ```
 
 ### Configuration
@@ -177,7 +185,7 @@ sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\003_login_attempts.s
 ```powershell
 .\tests\check-local.ps1 -AdminPassword '<admin password>'
 ```
-Expected: `All checks passed` (67 checks as of commit `708b75d`). The script creates temporary QA accounts and tickets and deletes them when it finishes.
+Expected: `All checks passed` (87 checks as of September 27, 2026). The script creates temporary QA accounts and tickets and deletes them when it finishes.
 
 ### 5.2 Manual acceptance tests
 
@@ -203,10 +211,17 @@ Expected: `All checks passed` (67 checks as of commit `708b75d`). The script cre
 2. **Priorities**: change an SLA target. ✅ Saved, and logged in **Audit Log**.
 3. **Statuses**: ✅ shows the locked workflow and the allowed next step for each status.
 
-**Test 5 – Access control (SEC)**
+**Test 5 – Dashboard, search, and SLA (CR-06, CR-07, CR-08)**
+1. As a technician open **Dashboard**. ✅ Tiles show open, unassigned, overdue, due in 4 hours, my queue, and resolved today; clicking a tile opens the matching ticket list.
+2. On **Tickets**, type part of a title in the search box, then try the **Overdue** and **Unassigned** chips and the Status/Priority filters. ✅ The list narrows and the count updates.
+3. ✅ The SLA column counts down (for example "3h 12m left"), turns amber when under a quarter of the target remains, and red when overdue.
+4. Open a ticket as its requester and post a reply. ✅ It appears under **Conversation**; staff replies carry an "IT Staff" tag.
+
+**Test 6 – Access control (SEC)**
 1. Sign in as an employee and open `/users.php`, `/reports.php`, and `/settings.php` directly.
 2. ✅ Each returns **403 Forbidden**. (Pages are not redirected to a dashboard; 403 is the intended behavior.)
 3. ✅ Five wrong passwords for one account show "Too many failed sign-in attempts"; other accounts still sign in.
+4. ✅ Deactivating a signed-in user, or resetting their password, signs them out on their next click.
 
 ---
 
@@ -239,11 +254,13 @@ Logs: `C:\Users\draft\AppData\Local\CodexTicketSystem\Apache24\logs\` (`cts4911_
 | CR-03 Sign-in lockout / Secure cookies | ✅ Complete | Automated checks |
 | Apache deployment (CR-01) | ✅ Running | Apache 2.4.68 + PHP 8.3.35 |
 | Team access (CR-04) | ✅ Live, PC-dependent | Public link verified over the internet |
-| Automated tests | ✅ 67/67 passing | `tests/check-local.ps1` |
+| CR-06/07/08 Modern UI, dashboard, search, replies | ✅ Complete | Automated checks (search, views, replies, dashboard) |
+| CR-09 Immediate sign-out fix | ✅ Complete | Automated checks (deactivation and password reset) |
+| Automated tests | ✅ 87/87 passing | `tests/check-local.ps1` |
 | Team accounts | ⚠️ **To do** | Only the administrator exists; create teammates in Manage Users |
 | Always-on hosting (CR-05) | ⏸ Deferred | Needs working Azure access |
 
-**Open items before calling deployment complete:** create the team accounts, and run Tests 1–5 once as a team.
+**Open items before calling deployment complete:** create the team accounts, and run Tests 1–6 once as a team.
 
 ---
 

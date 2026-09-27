@@ -27,17 +27,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $pageTitle = 'Create Ticket'; require __DIR__ . '/partials/header.php';
 ?>
+<div class="page-header">
+    <div>
+        <h1>Create a support ticket</h1>
+        <p class="subtitle">Tell the IT help desk what is wrong. A technician will pick it up and keep you posted here.</p>
+    </div>
+</div>
+<div class="two-col">
 <section class="card">
-<h1>Create a support ticket</h1>
-<?php foreach ($errors as $error): ?><p class="errors"><?= e($error) ?></p><?php endforeach; ?>
+<?php foreach ($errors as $error): ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
 <form method="post">
     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-    <label for="title">Short title</label><input id="title" name="title" maxlength="150" value="<?= e($data['title']) ?>" required>
+    <label for="title">Short title</label><input id="title" name="title" maxlength="150" value="<?= e($data['title']) ?>" placeholder="e.g. Laptop will not connect to campus Wi-Fi" required>
     <label for="category">Category</label><select id="category" name="category_id" required><option value="">Choose one</option>
         <?php foreach ($categories as $category): ?><option value="<?= (int) $category['id'] ?>" <?= (int) $data['category_id'] === (int) $category['id'] ? 'selected' : '' ?>><?= e($category['name']) ?></option><?php endforeach; ?>
     </select>
-    <label for="description">Problem description</label><textarea id="description" name="description" maxlength="5000" required><?= e($data['description']) ?></textarea>
-    <button type="submit">Submit Ticket</button>
+    <label for="description">Problem description</label><textarea id="description" name="description" maxlength="5000" minlength="10" placeholder="What happened, when it started, and any error messages you saw." required><?= e($data['description']) ?></textarea>
+    <p class="field-hint">At least 10 characters.</p>
+    <div class="form-actions"><button type="submit"><?= icon('plus') ?>Submit Ticket</button></div>
 </form>
 </section>
+<aside class="card">
+    <h2>Tips for a fast fix</h2>
+    <ul class="meta">
+        <li>Include the exact error message or a description of what you see.</li>
+        <li>Say which device, room, or account is affected.</li>
+        <li>Mention anything you already tried.</li>
+    </ul>
+    <p class="meta">New tickets start as <strong>Open</strong> with <strong>Medium</strong> priority. IT staff may change the priority, which sets the response target.</p>
+</aside>
+</div>
 <?php require __DIR__ . '/partials/footer.php'; ?>

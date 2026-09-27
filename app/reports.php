@@ -12,10 +12,20 @@ const SLA_STATE_SQL = "CASE WHEN t.resolved_at IS NOT NULL
 /** Ticket rows joined with priority/status names, SLA due time, and SLA state. */
 function ticket_sla_base(): string
 {
-    return 'SELECT t.id, t.title, t.requester_id, t.assigned_to, t.category_id, t.created_at, t.resolved_at, t.closed_at,
+    return 'SELECT t.id, t.title, t.requester_id, t.assigned_to, t.category_id, t.created_at, t.updated_at, t.resolved_at, t.closed_at,
         p.name AS priority, p.sort_order AS priority_order, p.sla_hours, s.name AS status, s.sort_order AS status_order,
         DATEADD(hour, p.sla_hours, t.created_at) AS due_at, ' . SLA_STATE_SQL . ' AS sla_state
         FROM tickets t JOIN priorities p ON p.id = t.priority_id JOIN statuses s ON s.id = t.status_id';
+}
+
+/** Ticket rows with SLA data plus requester, assignee, and category names, for ticket tables. */
+function ticket_list_sql(): string
+{
+    return 'SELECT x.*, r.name AS requester, a.name AS assignee, c.name AS category
+        FROM (' . ticket_sla_base() . ') x
+        JOIN users r ON r.id = x.requester_id
+        LEFT JOIN users a ON a.id = x.assigned_to
+        JOIN categories c ON c.id = x.category_id';
 }
 
 /**

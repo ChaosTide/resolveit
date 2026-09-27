@@ -23,7 +23,27 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 $users=$pdo->query('SELECT u.id,u.name,u.email,u.active,u.created_at,r.name AS role FROM users u JOIN roles r ON r.id=u.role_id ORDER BY u.name')->fetchAll();
 $pageTitle='Manage Users'; require __DIR__.'/partials/header.php';
 ?>
-<h1>Manage Users</h1><?php foreach($errors as $error): ?><p class="errors"><?= e($error) ?></p><?php endforeach; ?>
-<section class="card"><h2>Create user</h2><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="create"><label>Name<input name="name" maxlength="100" required></label><label>Email<input name="email" type="email" maxlength="190" required></label><label>Temporary password<input name="password" type="password" minlength="12" required></label><label>Role<select name="role"><option value="employee">Employee</option><option value="technician">Technician</option><option value="administrator">Administrator</option></select></label><button>Create User</button></form></section>
-<table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Active</th><th>Action</th></tr></thead><tbody><?php foreach($users as $user): ?><tr><td><?= e($user['name']) ?></td><td><?= e($user['email']) ?></td><td><?= e($user['role']) ?></td><td><?= $user['active']?'Yes':'No' ?></td><td><a href="user-edit.php?id=<?= (int)$user['id'] ?>">Edit</a><?php if((int)$user['id']!==(int)current_user()['id']): ?><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="toggle"><input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>"><button><?= $user['active']?'Deactivate':'Activate' ?></button></form><?php endif; ?></td></tr><?php endforeach; ?></tbody></table>
+<div class="page-header">
+    <div><h1>Manage Users</h1><p class="subtitle">Create accounts for requesters and IT staff, change roles, and reset passwords.</p></div>
+</div>
+<?php foreach($errors as $error): ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
+<section class="card"><h2>Create user</h2>
+<form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="create">
+<div class="form-grid">
+<div><label for="new-name">Name</label><input id="new-name" name="name" maxlength="100" required></div>
+<div><label for="new-email">Email</label><input id="new-email" name="email" type="email" maxlength="190" required></div>
+<div><label for="new-password">Temporary password</label><input id="new-password" name="password" type="password" minlength="12" autocomplete="new-password" required><p class="field-hint">At least 12 characters. Share it privately.</p></div>
+<div><label for="new-role">Role</label><select id="new-role" name="role"><option value="employee">Employee (requester)</option><option value="technician">Technician</option><option value="administrator">Administrator</option></select></div>
+</div>
+<button><?= icon('plus') ?>Create User</button></form></section>
+<div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>
+<?php foreach($users as $user): ?><tr>
+<td><span class="person"><?= avatar($user['name']) ?><span><?= e($user['name']) ?></span></span></td>
+<td><?= e($user['email']) ?></td>
+<td><span class="badge<?= $user['role'] === 'administrator' ? ' status-assigned' : ($user['role'] === 'technician' ? ' status-open' : '') ?>"><?= e(ucfirst($user['role'])) ?></span></td>
+<td><?= $user['active'] ? '<span class="badge status-resolved">Active</span>' : '<span class="badge status-closed">Deactivated</span>' ?></td>
+<td class="meta"><?= e(format_time($user['created_at'])) ?></td>
+<td><div class="page-actions"><a class="button secondary small" href="user-edit.php?id=<?= (int)$user['id'] ?>">Edit</a>
+<?php if((int)$user['id']!==(int)current_user()['id']): ?><form method="post"<?= $user['active'] ? ' data-confirm="Deactivate ' . e($user['name']) . '? They will be signed out immediately."' : '' ?>><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="toggle"><input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>"><button class="small<?= $user['active'] ? ' danger' : '' ?>"><?= $user['active']?'Deactivate':'Activate' ?></button></form><?php endif; ?></div></td>
+</tr><?php endforeach; ?></tbody></table></div>
 <?php require __DIR__.'/partials/footer.php'; ?>

@@ -6,7 +6,8 @@ This beginner-friendly PHP/Microsoft SQL Server prototype implements the capston
 
 ## 1. What the system does
 
-- Employees can sign in, create tickets, and view only their own tickets.
+- A modern help desk interface: dashboard with SLA tiles, searchable and filterable ticket list with live SLA countdowns, and a ticket page with a conversation thread, workflow progress, and history.
+- Employees can sign in, create tickets, reply on them, and view only their own tickets.
 - Technicians can view all tickets, assign them, change priority/status, add technical notes, and record a resolution.
 - Administrators have technician permissions and can create, edit, deactivate, and reset passwords for users.
 - Administrators also get **Reports** and **Settings** (categories, priorities and their SLA targets, the status workflow, and an audit log of every admin action).

@@ -23,8 +23,8 @@ if (!$pdo->query("SELECT OBJECT_ID('dbo.capstone_migrations')")->fetchColumn()) 
         foreach($names as $prefix=>$name) {
             $insert->execute([$name,$prefix.'@students.uwf.edu',password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT),$prefix==='jlb282'?'administrator':'employee']);
         }
-        // schema.sql already contains migrations 2 (audit log), 3 (SLA), and 4 (login attempts), so mark them applied.
-        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3),(4)');
+        // schema.sql already contains migrations 2-5 (audit log, SLA, login attempts, password_changed_at), so mark them applied.
+        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3),(4),(5)');
         $pdo->commit();
         echo "Cloud schema and six team accounts created.\n";
     } catch(Throwable $e) { $pdo->rollBack(); throw $e; }
@@ -50,6 +50,7 @@ $upgrades = [
             CREATE INDEX idx_login_attempts_email ON login_attempts(email, created_at);
             CREATE INDEX idx_login_attempts_ip ON login_attempts(ip, created_at);
           END"],
+    5 => ["IF COL_LENGTH(N'users', N'password_changed_at') IS NULL ALTER TABLE users ADD password_changed_at DATETIME2(0) NULL"],
 ];
 $applied = array_map('intval', $pdo->query('SELECT id FROM dbo.capstone_migrations')->fetchAll(PDO::FETCH_COLUMN));
 foreach ($upgrades as $id => $statements) {

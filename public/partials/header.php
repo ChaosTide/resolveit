@@ -1,26 +1,55 @@
-<?php $flashMessage = $_SESSION['flash'] ?? null; unset($_SESSION['flash']); ?>
+<?php
+$flashMessage = $_SESSION['flash'] ?? null; unset($_SESSION['flash']);
+$currentPage = basename($_SERVER['SCRIPT_NAME'] ?? '');
+$currentUser = current_user();
+$navActive = fn (array $pages) => in_array($currentPage, $pages, true) ? ' aria-current="page"' : '';
+?>
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= e($pageTitle ?? 'IT Ticket System') ?></title>
+    <title><?= e($pageTitle ?? 'Service Desk') ?> · CTS Service Desk</title>
     <link rel="stylesheet" href="assets/style.css">
+    <script src="assets/app.js" defer></script>
 </head>
-<body>
-<header class="site-header">
-    <a class="brand" href="index.php">CTS 4911 Ticket System</a>
-    <?php if (current_user()): ?>
-        <nav aria-label="Main navigation">
-            <a href="tickets.php">Tickets</a>
-            <a href="ticket-create.php">New Ticket</a>
-            <?php if (has_role('administrator')): ?><a href="users.php">Manage Users</a><a href="reports.php">Reports</a><a href="settings.php">Settings</a><?php endif; ?>
-            <a href="logout.php">Sign Out</a>
-        </nav>
-    <?php endif; ?>
-</header>
-<main class="container">
-<?php if ($flashMessage): ?>
-    <p class="alert <?= e($flashMessage['type']) ?>" role="status"><?= e($flashMessage['message']) ?></p>
+<?php if (!$currentUser): ?>
+<body class="auth-layout">
+<header class="auth-brand"><span class="logo" aria-hidden="true"><?= icon('tickets') ?></span> CTS Service Desk</header>
+<main class="auth-main">
+<?php else: ?>
+<body class="app-layout">
+<a class="skip-link" href="#content">Skip to content</a>
+<aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.php"><span class="logo" aria-hidden="true"><?= icon('tickets') ?></span><span>CTS Service Desk</span></a>
+    <nav aria-label="Main navigation">
+        <a href="dashboard.php"<?= $navActive(['dashboard.php']) ?>><?= icon('dashboard') ?>Dashboard</a>
+        <a href="tickets.php"<?= $navActive(['tickets.php', 'ticket.php', 'ticket-edit.php']) ?>><?= icon('tickets') ?><?= has_role('employee') ? 'My Tickets' : 'Tickets' ?></a>
+        <a href="ticket-create.php"<?= $navActive(['ticket-create.php']) ?>><?= icon('plus') ?>New Ticket</a>
+        <?php if (has_role('administrator')): ?>
+            <p class="nav-heading">Administration</p>
+            <a href="users.php"<?= $navActive(['users.php', 'user-edit.php']) ?>><?= icon('users') ?>Manage Users</a>
+            <a href="reports.php"<?= $navActive(['reports.php']) ?>><?= icon('chart') ?>Reports</a>
+            <a href="settings.php"<?= $navActive(['settings.php']) ?>><?= icon('settings') ?>Settings</a>
+        <?php endif; ?>
+    </nav>
+    <div class="sidebar-footer">Classroom prototype for CTS 4911</div>
+</aside>
+<div class="app-main">
+    <header class="topbar">
+        <button type="button" class="icon-button menu-toggle" aria-controls="sidebar" aria-expanded="false" aria-label="Open menu"><?= icon('menu') ?></button>
+        <form class="topbar-search" action="tickets.php" method="get" role="search">
+            <?= icon('search') ?>
+            <input type="search" name="q" placeholder="Search tickets by ID, title, or description" aria-label="Search tickets" value="<?= e($currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : '') ?>">
+        </form>
+        <div class="topbar-user">
+            <?= avatar($currentUser['name']) ?>
+            <span class="user-meta"><strong><?= e($currentUser['name']) ?></strong><span class="role-tag"><?= e(ucfirst($currentUser['role'])) ?></span></span>
+            <a class="icon-button" href="logout.php" title="Sign out" aria-label="Sign out"><?= icon('logout') ?></a>
+        </div>
+    </header>
+    <main class="content" id="content">
 <?php endif; ?>
-
+<?php if ($flashMessage): ?>
+    <div class="alert <?= e($flashMessage['type']) ?>" role="status"><?= icon($flashMessage['type'] === 'success' ? 'check' : 'alert') ?><span><?= e($flashMessage['message']) ?></span></div>
+<?php endif; ?>

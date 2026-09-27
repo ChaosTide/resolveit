@@ -9,6 +9,7 @@ $statuses = $pdo->query('SELECT id,name,sort_order FROM statuses ORDER BY sort_o
 $priorities = $pdo->query('SELECT id,name FROM priorities ORDER BY sort_order')->fetchAll();
 $technicians = $pdo->query("SELECT u.id,u.name FROM users u JOIN roles r ON r.id=u.role_id WHERE r.name IN ('technician','administrator') AND u.active=1 ORDER BY u.name")->fetchAll();
 $currentStatusId = (int) $ticket['status_id'];
+$currentSortOrder = (int) (array_column($statuses, 'sort_order', 'id')[$currentStatusId] ?? 0);
 $allowedStatusIds = allowed_status_ids($statuses, $currentStatusId);
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -52,13 +53,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 $pageTitle='Manage Ticket'; require __DIR__.'/partials/header.php';
 ?>
-<section class="card"><h1>Manage Ticket #<?= $ticketId ?></h1><?php foreach($errors as $error): ?><p class="errors"><?= e($error) ?></p><?php endforeach; ?>
+<div class="page-header">
+    <div>
+        <p class="breadcrumb"><a href="tickets.php">Tickets</a> / <a href="ticket.php?id=<?= $ticketId ?>">#<?= $ticketId ?></a> / Manage</p>
+        <h1>Manage Ticket #<?= $ticketId ?></h1>
+        <p class="subtitle"><?= e($ticket['title']) ?></p>
+    </div>
+    <div class="page-actions"><a class="button secondary" href="ticket.php?id=<?= $ticketId ?>">Back to ticket</a></div>
+</div>
+<section class="card" style="max-width: 820px">
+<?php foreach($errors as $error): ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
+<div class="workflow" aria-label="Workflow">
+<?php foreach ($statuses as $i => $step): $state = (int)$step['sort_order'] < (int)$currentSortOrder ? 'done' : ((int)$step['id'] === $currentStatusId ? 'current' : ''); ?><?= $i ? '<span class="arrow">&rsaquo;</span>' : '' ?><span class="<?= $state ?>"><?= e($step['name']) ?></span><?php endforeach; ?>
+</div>
 <form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="id" value="<?= $ticketId ?>">
-<label for="assigned_to">Assign to</label><select id="assigned_to" name="assigned_to"><option value="">Unassigned</option><?php foreach($technicians as $tech): ?><option value="<?= (int)$tech['id'] ?>" <?= (int)$ticket['assigned_to']===(int)$tech['id']?'selected':'' ?>><?= e($tech['name']) ?></option><?php endforeach; ?></select>
-<label for="priority_id">Priority</label><select id="priority_id" name="priority_id"><?php foreach($priorities as $priority): ?><option value="<?= (int)$priority['id'] ?>" <?= (int)$ticket['priority_id']===(int)$priority['id']?'selected':'' ?>><?= e($priority['name']) ?></option><?php endforeach; ?></select>
-<label for="status_id">Status</label><select id="status_id" name="status_id"><?php foreach($statuses as $status): if (!in_array((int)$status['id'], $allowedStatusIds, true)) continue; ?><option value="<?= (int)$status['id'] ?>" <?= $currentStatusId===(int)$status['id']?'selected':'' ?>><?= e($status['name']) ?><?= $currentStatusId===(int)$status['id']?' (current)':'' ?></option><?php endforeach; ?></select>
-<p class="meta">Workflow: Open &rarr; Assigned &rarr; In Progress &rarr; Resolved &rarr; Closed. Tickets move one step at a time; a Resolved ticket can be reopened to In Progress. Closed is final.</p>
-<label for="note">New technical note</label><textarea id="note" name="note" maxlength="5000"></textarea>
-<label for="resolution">Resolution (required for Resolved or Closed)</label><textarea id="resolution" name="resolution" maxlength="5000"><?= e($ticket['resolution']) ?></textarea>
-<button type="submit">Save Changes</button></form></section>
+<div class="form-grid">
+<div><label for="status_id">Status</label><select id="status_id" name="status_id"><?php foreach($statuses as $status): if (!in_array((int)$status['id'], $allowedStatusIds, true)) continue; ?><option value="<?= (int)$status['id'] ?>" data-name="<?= e($status['name']) ?>" <?= $currentStatusId===(int)$status['id']?'selected':'' ?>><?= e($status['name']) ?><?= $currentStatusId===(int)$status['id']?' (current)':'' ?></option><?php endforeach; ?></select>
+<p class="field-hint">Tickets move one step at a time. A Resolved ticket can be reopened to In Progress; Closed is final.</p></div>
+<div><label for="assigned_to">Assign to</label><select id="assigned_to" name="assigned_to"><option value="">Unassigned</option><?php foreach($technicians as $tech): ?><option value="<?= (int)$tech['id'] ?>" <?= (int)$ticket['assigned_to']===(int)$tech['id']?'selected':'' ?>><?= e($tech['name']) ?></option><?php endforeach; ?></select>
+<p class="field-hint">Every status after Open needs a technician.</p></div>
+<div><label for="priority_id">Priority</label><select id="priority_id" name="priority_id"><?php foreach($priorities as $priority): ?><option value="<?= (int)$priority['id'] ?>" <?= (int)$ticket['priority_id']===(int)$priority['id']?'selected':'' ?>><?= e($priority['name']) ?></option><?php endforeach; ?></select>
+<p class="field-hint">Changing priority changes the SLA target.</p></div>
+</div>
+<label for="note">New technical note</label><textarea id="note" name="note" maxlength="5000" placeholder="Visible to the requester and IT staff."></textarea>
+<label for="resolution">Resolution</label><textarea id="resolution" name="resolution" maxlength="5000" placeholder="What fixed the problem?"><?= e($ticket['resolution']) ?></textarea>
+<p class="field-hint" id="resolution-hint">Required (10+ characters) to set Resolved or Closed.</p>
+<div class="form-actions"><button type="submit">Save Changes</button><a class="button secondary" href="ticket.php?id=<?= $ticketId ?>" style="margin-top:1rem">Cancel</a></div></form></section>
 <?php require __DIR__.'/partials/footer.php'; ?>

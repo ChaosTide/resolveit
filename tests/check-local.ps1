@@ -34,7 +34,7 @@ function SetStatus($session,$ticketId,$statusId,$assignee){
     $p=Request $session "ticket-edit.php?id=$ticketId"
     return Request $session "ticket-edit.php?id=$ticketId" @{csrf_token=(Token $p);status_id=$statusId;priority_id=2;assigned_to=$assignee;note="QA transition to $statusId";resolution='QA issue resolved for testing.'}
 }
-function StatusOf($response){ return [regex]::Match($response.Content,'<strong>Status</strong><br>([^<]+)</div>').Groups[1].Value }
+function StatusOf($response){ return [regex]::Match($response.Content,'data-field="status"><span class="badge[^"]*">([^<]+)<').Groups[1].Value }
 # Removes only rows carrying this run's timestamp tag. Admin audit log rows are kept on purpose.
 function RemoveTestData($tag){
     if($KeepData){ Write-Output "Kept QA data tagged $tag."; return }
@@ -89,6 +89,17 @@ Check 'New ticket starts Open' ((StatusOf $r) -eq 'Open')
 Check 'Script text escaped' ($r.Content.Contains('&lt;script&gt;'))
 if(-not $id){ Write-Output $r.Content; RemoveTestData $tag; exit 1 }
 Check 'Employee cannot manage ticket' ((Request $employee "ticket-edit.php?id=$id").StatusCode -eq 403)
+
+# --- Conversation replies ---
+$p=Request $employee "ticket.php?id=$id"
+$r=Request $employee "ticket.php?id=$id" @{csrf_token=(Token $p);id=$id;note="Employee reply $tag"}
+Check 'Requester can reply to own ticket' ($r.Content.Contains('Reply added') -and $r.Content.Contains("Employee reply $tag"))
+$p=Request $tech "ticket.php?id=$id"
+$r=Request $tech "ticket.php?id=$id" @{csrf_token=(Token $p);id=$id;note="Technician reply $tag"}
+Check 'Staff reply is labeled IT Staff' ([regex]::IsMatch($r.Content,'IT Staff</span>.*?Technician reply','Singleline'))
+$p=Request $employee "ticket.php?id=$id"
+$r=Request $employee "ticket.php?id=$id" @{csrf_token=(Token $p);id=$id;note='x'}
+Check 'Too-short reply rejected' ($r.Content.Contains('A reply must be between'))
 $p=Request $tech "ticket-edit.php?id=$id"
 $assignee=[regex]::Match($p.Content,'<option value="(\d+)"[^>]*>QA technician').Groups[1].Value
 Check 'Open ticket form hides Closed option' (-not $p.Content.Contains('>Closed</option>'))
@@ -110,7 +121,11 @@ Check 'Resolve again' ((StatusOf (SetStatus $tech $id 4 $assignee)) -eq 'Resolve
 Check 'Close resolved ticket' ((StatusOf (SetStatus $tech $id 5 $assignee)) -eq 'Closed')
 Check 'Block Closed -> In Progress' ((SetStatus $tech $id 3 $assignee).Content.Contains('Closed is final'))
 $r=Request $tech "ticket.php?id=$id"
-Check 'History records status names' ($r.Content.Contains('status changed -&gt; Closed') -or $r.Content.Contains('status changed -> Closed'))
+Check 'History records status names' ($r.Content.Contains('status changed: Resolved &rarr; Closed'))
+# A closed ticket has no reply form, so take the session's form token from another page.
+$p=Request $employee 'ticket-create.php'
+$r=Request $employee "ticket.php?id=$id" @{csrf_token=(Token $p);id=$id;note='Is this still broken?'}
+Check 'Closed ticket rejects replies' ($r.Content.Contains('This ticket is closed. Create a new ticket') -and -not $r.Content.Contains('Is this still broken?</p>'))
 
 $p=Request $admin 'ticket-create.php'
 $r=Request $admin 'ticket-create.php' @{csrf_token=(Token $p);title="QA access $tag";description='Administrator-owned isolation test.';category_id=1}
@@ -121,7 +136,7 @@ Check 'Administrator also blocked from Open -> Closed' ($r.Content.Contains('Sta
 
 # --- User editing ---
 $usersPage=(Request $admin 'users.php').Content
-$employeeId=[regex]::Match($usersPage,"QA employee $tag</td>.*?user-edit\.php\?id=(\d+)",'Singleline').Groups[1].Value
+$employeeId=[regex]::Match($usersPage,"qa-employee-$tag@example\.test</td>.*?user-edit\.php\?id=(\d+)",'Singleline').Groups[1].Value
 Check 'Users page links to Edit' ($employeeId -ne '')
 $p=Request $admin "user-edit.php?id=$employeeId"
 $r=Request $admin "user-edit.php?id=$employeeId" @{csrf_token=(Token $p);id=$employeeId;name="QA employee renamed $tag";email="qa-employee-$tag@example.test";role='employee';password=''}
@@ -129,8 +144,10 @@ Check 'Edit user name' ($r.Content.Contains("QA employee renamed $tag"))
 $newPassword=[guid]::NewGuid().ToString()+'!Bb8'
 $p=Request $admin "user-edit.php?id=$employeeId"
 $null=Request $admin "user-edit.php?id=$employeeId" @{csrf_token=(Token $p);id=$employeeId;name="QA employee renamed $tag";email="qa-employee-$tag@example.test";role='employee';password=$newPassword}
-Check 'Reset user password' ((Request (SignIn "qa-employee-$tag@example.test" $newPassword) 'tickets.php').Content.Contains("QA employee renamed $tag"))
-$adminId=[regex]::Match($usersPage,"Jordan Black</td>.*?user-edit\.php\?id=(\d+)",'Singleline').Groups[1].Value
+Check 'Password reset signs out existing sessions' ((Request $employee 'tickets.php').Content.Contains('<h1>Sign in</h1>'))
+$employee=SignIn "qa-employee-$tag@example.test" $newPassword
+Check 'Reset user password' ((Request $employee 'tickets.php').Content.Contains("QA employee renamed $tag"))
+$adminId=[regex]::Match($usersPage,"jordan@cts4911\.local</td>.*?user-edit\.php\?id=(\d+)",'Singleline').Groups[1].Value
 $p=Request $admin "user-edit.php?id=$adminId"
 $r=Request $admin "user-edit.php?id=$adminId" @{csrf_token=(Token $p);id=$adminId;name='Jordan Black';email='jordan@cts4911.local';role='employee';password=''}
 Check 'Administrator cannot demote self' ($r.Content.Contains('You cannot change your own role'))
@@ -143,8 +160,26 @@ sqlcmd -S $SqlServer -E -C -b -d TicketManagement -Q "UPDATE tickets SET created
 $r=Request $admin 'reports.php'
 Check 'Overdue ticket listed by due time' ([regex]::IsMatch($r.Content,"ticket\.php\?id=$other`">#$other</a>.*?sla-overdue",'Singleline'))
 Check 'Technician ticket list flags overdue' ([regex]::IsMatch((Request $tech 'tickets.php').Content,"id=$other`">#$other</a>(?:(?!</tr>).)*sla-overdue",'Singleline'))
-Check 'Ticket page shows SLA due' ((Request $tech "ticket.php?id=$other").Content.Contains('<strong>SLA due</strong>'))
-Check 'Employee view hides SLA details' (-not (Request $employee "ticket.php?id=$id").Content.Contains('SLA due'))
+Check 'Ticket page shows SLA due' ((Request $tech "ticket.php?id=$other").Content.Contains('data-field="sla"'))
+Check 'Employee view hides SLA details' (-not (Request $employee "ticket.php?id=$id").Content.Contains('data-field="sla"'))
+
+# --- Dashboard, search, and filters ---
+$r=Request $tech 'dashboard.php'
+Check 'Staff dashboard shows SLA tiles and queue' ($r.Content.Contains('Overdue') -and $r.Content.Contains('My queue') -and [regex]::IsMatch($r.Content,"id=$other`">#$other</a>(?:(?!</tr>).)*sla-overdue",'Singleline'))
+Check 'Employee dashboard shows own tickets' ((Request $employee 'dashboard.php').Content.Contains("QA workflow $tag"))
+Check 'Home page opens the dashboard' ((Request $tech 'index.php').Content.Contains('Welcome back'))
+$r=Request $tech ("tickets.php?q=" + [uri]::EscapeDataString("QA workflow $tag"))
+Check 'Search by title' ($r.Content.Contains("id=$id`">#$id</a>") -and -not $r.Content.Contains("id=$other`">#$other</a>"))
+Check 'Search by ticket number' ((Request $tech "tickets.php?q=%23$other").Content.Contains("id=$other`">#$other</a>"))
+Check 'Search with no match' ((Request $tech 'tickets.php?q=zz-no-such-ticket-zz').Content.Contains('0 tickets match'))
+Check 'Search treats % literally' ((Request $tech 'tickets.php?q=%25%25%25').Content.Contains('0 tickets match'))
+$r=Request $tech 'tickets.php?view=overdue'
+Check 'Overdue view' ($r.Content.Contains("id=$other`">#$other</a>") -and -not $r.Content.Contains("id=$id`">#$id</a>"))
+$r=Request $tech 'tickets.php?view=closed'
+Check 'Closed view' ($r.Content.Contains("id=$id`">#$id</a>") -and -not $r.Content.Contains("id=$other`">#$other</a>"))
+Check 'Unassigned view' ((Request $tech 'tickets.php?view=unassigned').Content.Contains("id=$other`">#$other</a>"))
+Check 'Employee search stays within own tickets' (-not (Request $employee ("tickets.php?q=" + [uri]::EscapeDataString("QA access $tag"))).Content.Contains("id=$other`">#$other</a>"))
+Check 'Bad filter values are ignored' ((Request $tech "tickets.php?status=abc&priority=-1&page=999&sort=drop").StatusCode -eq 200)
 $r=Request $admin 'reports.php?from=2020-01-01&to=2020-01-31'
 Check 'Date range filter applied' ($r.Content.Contains('Jan 1, 2020') -and $r.Content.Contains('Created in period</span><strong>0<'))
 Check 'Invalid date falls back safely' ((Request $admin 'reports.php?from=not-a-date').Content.Contains('Dates must look like'))
@@ -201,6 +236,15 @@ $cookie=(Invoke-WebRequest ($base+'login.php') -UseBasicParsing -Headers @{'X-Fo
 Check 'Session cookie is Secure behind the HTTPS tunnel' ($cookie -match '(?i);\s*secure')
 $cookie=(Invoke-WebRequest ($base+'login.php') -UseBasicParsing).Headers['Set-Cookie']
 Check 'Session cookie still works over local HTTP' ($cookie -and $cookie -notmatch '(?i);\s*secure')
+
+# --- Front end assets and deactivation ---
+$r=Request $anon 'assets/app.js'
+Check 'JavaScript is served' ($r.StatusCode -eq 200 -and $r.Content.Contains('updateSlaBadges'))
+Check 'Deactivate asks for confirmation' ((Request $admin 'users.php').Content.Contains('data-confirm="Deactivate'))
+$techId=[regex]::Match((Request $admin 'users.php').Content,"qa-technician-$tag@example\.test</td>.*?name=`"user_id`" value=`"(\d+)`"",'Singleline').Groups[1].Value
+$p=Request $admin 'users.php'
+$null=Request $admin 'users.php' @{csrf_token=(Token $p);action='toggle';user_id=$techId}
+Check 'Deactivation signs the user out immediately' ((Request $tech 'tickets.php').Content.Contains('<h1>Sign in</h1>'))
 
 # --- Sign out ---
 $null=Request $employee 'logout.php'

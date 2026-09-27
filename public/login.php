@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
-if (current_user()) { redirect('tickets.php'); }
+if (current_user()) { redirect('dashboard.php'); }
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -17,22 +17,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'The email or password is incorrect, or the account is inactive.';
     } else {
         record_login_attempt($pdo, $normalizedEmail, $ip, true);
-        redirect('tickets.php');
+        redirect('dashboard.php');
     }
 }
 $pageTitle = 'Sign In';
 require __DIR__ . '/partials/header.php';
 ?>
-<section class="card" style="max-width: 520px; margin-inline: auto">
+<section class="card">
     <h1>Sign in</h1>
-    <?php foreach ($errors as $error): ?><p class="errors"><?= e($error) ?></p><?php endforeach; ?>
+    <p class="meta">IT help desk for CTS 4911. Use the email and password your administrator gave you.</p>
+    <?php foreach ($errors as $error): ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
         <label for="email">Email</label>
-        <input id="email" name="email" type="email" maxlength="190" autocomplete="username" required>
+        <input id="email" name="email" type="email" maxlength="190" autocomplete="username" value="<?= e($email ?? '') ?>" required autofocus>
         <label for="password">Password</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required>
-        <button type="submit">Sign In</button>
+        <button type="submit" style="width:100%">Sign In</button>
     </form>
 </section>
 <?php require __DIR__ . '/partials/footer.php'; ?>

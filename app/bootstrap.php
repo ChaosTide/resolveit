@@ -21,6 +21,8 @@ require_once __DIR__ . '/validation.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/audit.php';
+require_once __DIR__ . '/reports.php';
+require_once __DIR__ . '/ui.php';
 
 session_name($config['session']['name']);
 session_set_cookie_params([
@@ -41,6 +43,7 @@ $_SESSION['last_activity'] = time();
 
 $pdo = db($config['db']);
 if ($azureIdentity !== null) azure_team_login($pdo, $azureIdentity);
+else refresh_session_user($pdo);
 
 function e(?string $value): string
 {

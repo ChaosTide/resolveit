@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $pageTitle = 'Settings'; require __DIR__ . '/partials/header.php';
 ?>
-<h1>System settings</h1>
+<div class="page-header"><div><h1>System settings</h1><p class="subtitle">Categories, priorities and SLA targets, the ticket workflow, and the audit log.</p></div></div>
 <nav class="tabs" aria-label="Settings sections">
 <?php foreach ($tabs as $key => $label): ?><a href="settings.php?tab=<?= $key ?>" <?= $tab === $key ? 'aria-current="page"' : '' ?>><?= $label ?></a><?php endforeach; ?>
 </nav>
