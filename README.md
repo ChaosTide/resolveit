@@ -64,6 +64,16 @@ The site is deployed on Apache 2.4 (Apache Lounge Win64 build) with PHP 8.3 load
 - To set up Apache on another PC: extract the Apache Lounge zip, update the two paths at the top of `cts4911.conf`, then run `deploy\apache\install-apache.ps1`.
 - Logs: `Apache24\logs\cts4911_error.log`, `cts4911_access.log`, and `php_errors.log`.
 
+### Sharing the Apache site with the team (Cloudflare tunnel)
+
+1. Run `start-site.ps1` (Apache).
+2. In a second window run `deploy\tunnel\start-tunnel.ps1`. It prints a public `https://<random-words>.trycloudflare.com` link; send that to the team.
+3. Create each teammate's account in **Manage Users** and give them their temporary password privately.
+
+The link only works while this PC is on and both windows are open, and it changes every time the tunnel restarts. No Cloudflare account, router, or firewall change is needed: `cloudflared` connects out to Cloudflare, which forwards HTTPS visitors to Apache on 127.0.0.1. Five wrong passwords lock an account for 15 minutes.
+
+For an always-on server, `deploy/docker` builds the same site as an Apache container for Azure App Service.
+
 ## 4. Learning path for Jordan
 
 1. Read `database/schema.sql`: identify primary keys, foreign keys, and fixed reference tables.
