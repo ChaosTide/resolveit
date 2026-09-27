@@ -77,7 +77,7 @@ foreach($page in 'users.php','user-edit.php?id=1','reports.php','settings.php'){
 # --- Tickets ---
 $p=Request $employee 'ticket-create.php'
 $r=Request $employee 'ticket-create.php' @{csrf_token='invalid';title='QA';description='A testing description';category_id=1}
-Check 'CSRF rejection' ($r.StatusCode -eq 419)
+Check 'CSRF rejection' ($r.StatusCode -eq 403 -and $r.Content.Contains('The form expired or was invalid'))
 $r=Request $employee 'ticket-create.php' @{csrf_token=(Token $p);title='';description='short';category_id=1}
 Check 'Invalid ticket rejected' ($r.Content.Contains('Title is required'))
 $r=Request $employee 'ticket-create.php' @{csrf_token=(Token $p);title="QA workflow $tag";description='QA test description <script>alert(1)</script>';category_id=1}

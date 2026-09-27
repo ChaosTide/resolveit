@@ -19,7 +19,7 @@ Record the date, tester, expected result, actual result, and Pass/Fail for each 
 | TKT-07 | Technician | Set Closed. | Status is Closed and closed time is stored. |
 | SEC-01 | Any | Put `<script>alert(1)</script>` in a title or description. | Text displays literally; no script runs. |
 | SEC-02 | Any | Put `' OR 1=1 --` in login or ticket fields. | It is handled as data; authentication and queries are not bypassed. |
-| SEC-03 | Signed in | Remove/change the hidden CSRF token before form submission. | Request is rejected with status 419. |
+| SEC-03 | Signed in | Remove/change the hidden CSRF token before form submission. | Request is rejected with status 403 and a "form expired or was invalid" message. |
 | ADMIN-01 | Administrator | Create employee and technician accounts. | Passwords appear only as hashes in SQL Server; both users can sign in. |
 | ADMIN-02 | Administrator | Deactivate an account and try to sign in as it. | Sign-in is rejected. |
 

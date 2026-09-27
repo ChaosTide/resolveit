@@ -30,7 +30,7 @@ Keep `app`, `database`, `scripts`, and `tests` outside Apache's public document 
 1. PHP 8.3 and Microsoft's SQL Server driver are installed locally under your Windows profile.
 2. SQL Server runs as `WORKSTATION\JLB282`; the database is named `TicketManagement`.
 3. `app/config.php` already points to that instance using Windows Authentication.
-4. Run `start-site.ps1`, then open `http://127.0.0.1:8080`.
+4. Run `start-site.ps1`, then open `http://127.0.0.1:8080`. It serves the site with Apache (see below); `start-site.ps1 -Dev` uses PHP's built-in test server instead.
 5. In a terminal, create the first administrator:
 
    ```powershell
@@ -52,7 +52,15 @@ Keep `app`, `database`, `scripts`, and `tests` outside Apache's public document 
    .\tests\check-local.ps1 -AdminPassword '<admin password>'
    ```
 
-The included PHP server is for local classroom testing. Apache or IIS can be configured later for a deployment demonstration.
+### Apache deployment
+
+The site is deployed on Apache 2.4 (Apache Lounge Win64 build) with PHP 8.3 loaded as an Apache module.
+
+- Apache lives in `C:\Users\draft\AppData\Local\CodexTicketSystem\Apache24` and runs as your Windows user, not as a service, so PHP signs in to SQL Server with Windows Authentication exactly as SSMS does. No admin rights are needed.
+- All site settings are in `deploy/apache/cts4911.conf`: only `public/` is served, dotfiles and directory listings are blocked, PHP errors are logged instead of displayed, and security headers are sent.
+- It listens on `127.0.0.1:8080`, so only this PC can reach it. To share it on your network, change that line to `Listen 8080` and allow the port in Windows Firewall.
+- To set up Apache on another PC: extract the Apache Lounge zip, update the two paths at the top of `cts4911.conf`, then run `deploy\apache\install-apache.ps1`.
+- Logs: `Apache24\logs\cts4911_error.log`, `cts4911_access.log`, and `php_errors.log`.
 
 ## 4. Learning path for Jordan
 

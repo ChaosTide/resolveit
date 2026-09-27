@@ -70,7 +70,8 @@ function verify_csrf(): void
 {
     $token = $_POST['csrf_token'] ?? '';
     if (!is_string($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
-        http_response_code(419);
+        // 403 rather than the non-standard 419, which Apache turns into a 500 error.
+        http_response_code(403);
         exit('The form expired or was invalid. Go back, refresh, and try again.');
     }
 }
