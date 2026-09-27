@@ -57,6 +57,12 @@ CREATE TABLE admin_audit_log (
  CONSTRAINT fk_audit_admin FOREIGN KEY (admin_id) REFERENCES users(id)
 );
 CREATE INDEX idx_audit_created ON admin_audit_log(created_at);
+CREATE TABLE login_attempts (
+ id BIGINT IDENTITY(1,1) PRIMARY KEY, email NVARCHAR(190) NOT NULL, ip NVARCHAR(45) NOT NULL,
+ succeeded BIT NOT NULL, created_at DATETIME2(0) NOT NULL CONSTRAINT df_login_attempts_created DEFAULT SYSDATETIME()
+);
+CREATE INDEX idx_login_attempts_email ON login_attempts(email, created_at);
+CREATE INDEX idx_login_attempts_ip ON login_attempts(ip, created_at);
 INSERT INTO roles (name) VALUES (N'employee'), (N'technician'), (N'administrator');
 INSERT INTO categories (name) VALUES (N'Hardware'), (N'Software'), (N'Network'), (N'Account Access'), (N'Other');
 INSERT INTO priorities (name, sort_order, sla_hours) VALUES (N'Low',1,72), (N'Medium',2,24), (N'High',3,8), (N'Critical',4,4);

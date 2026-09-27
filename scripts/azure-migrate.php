@@ -23,8 +23,8 @@ if (!$pdo->query("SELECT OBJECT_ID('dbo.capstone_migrations')")->fetchColumn()) 
         foreach($names as $prefix=>$name) {
             $insert->execute([$name,$prefix.'@students.uwf.edu',password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT),$prefix==='jlb282'?'administrator':'employee']);
         }
-        // schema.sql already contains migrations 2 (audit log) and 3 (SLA), so mark them applied.
-        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3)');
+        // schema.sql already contains migrations 2 (audit log), 3 (SLA), and 4 (login attempts), so mark them applied.
+        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3),(4)');
         $pdo->commit();
         echo "Cloud schema and six team accounts created.\n";
     } catch(Throwable $e) { $pdo->rollBack(); throw $e; }
@@ -44,6 +44,12 @@ $upgrades = [
           "UPDATE priorities SET sla_hours = CASE sort_order WHEN 1 THEN 72 WHEN 2 THEN 24 WHEN 3 THEN 8 WHEN 4 THEN 4 ELSE sla_hours END",
           "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_ticket_created' AND object_id = OBJECT_ID(N'tickets'))
             CREATE INDEX idx_ticket_created ON tickets(created_at)"],
+    4 => ["IF OBJECT_ID(N'login_attempts', N'U') IS NULL BEGIN
+            CREATE TABLE login_attempts (id BIGINT IDENTITY(1,1) PRIMARY KEY, email NVARCHAR(190) NOT NULL, ip NVARCHAR(45) NOT NULL,
+             succeeded BIT NOT NULL, created_at DATETIME2(0) NOT NULL CONSTRAINT df_login_attempts_created DEFAULT SYSDATETIME());
+            CREATE INDEX idx_login_attempts_email ON login_attempts(email, created_at);
+            CREATE INDEX idx_login_attempts_ip ON login_attempts(ip, created_at);
+          END"],
 ];
 $applied = array_map('intval', $pdo->query('SELECT id FROM dbo.capstone_migrations')->fetchAll(PDO::FETCH_COLUMN));
 foreach ($upgrades as $id => $statements) {

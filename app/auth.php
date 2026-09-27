@@ -6,6 +6,43 @@ function current_user(): ?array
     return $_SESSION['user'] ?? null;
 }
 
+// Sign-in lockout: 5 wrong passwords for one email, or 20 from one address, within 15 minutes.
+const LOGIN_WINDOW_MINUTES = 15;
+const LOGIN_MAX_FAILURES_PER_EMAIL = 5;
+const LOGIN_MAX_FAILURES_PER_IP = 20;
+
+/** Visitor's address. Behind the local Cloudflare tunnel every request comes from loopback, so use Cloudflare's header there. */
+function client_ip(): string
+{
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $forwarded = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '';
+    if (in_array($remote, ['127.0.0.1', '::1'], true) && filter_var($forwarded, FILTER_VALIDATE_IP)) {
+        return $forwarded;
+    }
+    return $remote;
+}
+
+function login_locked_out(PDO $pdo, string $email, string $ip): bool
+{
+    // Failures for an email only count after its most recent successful sign-in.
+    $window = -LOGIN_WINDOW_MINUTES;
+    $stmt = $pdo->prepare("SELECT
+        (SELECT COUNT(*) FROM login_attempts WHERE email = ? AND succeeded = 0
+            AND created_at > DATEADD(minute, $window, SYSDATETIME())
+            AND created_at > ISNULL((SELECT MAX(created_at) FROM login_attempts WHERE email = ? AND succeeded = 1), '19000101')) AS email_failures,
+        (SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND succeeded = 0
+            AND created_at > DATEADD(minute, $window, SYSDATETIME())) AS ip_failures");
+    $stmt->execute([$email, $email, $ip]);
+    $counts = $stmt->fetch();
+    return (int) $counts['email_failures'] >= LOGIN_MAX_FAILURES_PER_EMAIL || (int) $counts['ip_failures'] >= LOGIN_MAX_FAILURES_PER_IP;
+}
+
+function record_login_attempt(PDO $pdo, string $email, string $ip, bool $succeeded): void
+{
+    $pdo->prepare('INSERT INTO login_attempts (email, ip, succeeded) VALUES (?, ?, ?)')
+        ->execute([mb_substr($email, 0, 190), mb_substr($ip, 0, 45), $succeeded ? 1 : 0]);
+}
+
 function login_user(PDO $pdo, string $email, string $password): bool
 {
     $stmt = $pdo->prepare(

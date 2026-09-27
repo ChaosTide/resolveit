@@ -6,11 +6,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $email = clean_text($_POST['email'] ?? '');
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
+    $normalizedEmail = mb_strtolower($email);
+    $ip = client_ip();
     if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $password === '') {
         $errors[] = 'Enter a valid email and password.';
+    } elseif (login_locked_out($pdo, $normalizedEmail, $ip)) {
+        $errors[] = 'Too many failed sign-in attempts. Wait 15 minutes and try again.';
     } elseif (!login_user($pdo, $email, $password)) {
+        record_login_attempt($pdo, $normalizedEmail, $ip, false);
         $errors[] = 'The email or password is incorrect, or the account is inactive.';
     } else {
+        record_login_attempt($pdo, $normalizedEmail, $ip, true);
         redirect('tickets.php');
     }
 }

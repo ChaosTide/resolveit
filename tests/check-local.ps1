@@ -43,6 +43,7 @@ DELETE FROM tickets WHERE title LIKE N'QA % $tag' OR requester_id IN (SELECT id 
 DELETE FROM users WHERE email LIKE N'qa-%-$tag@example.test';
 DELETE FROM categories WHERE name = N'QA category $tag' AND id NOT IN (SELECT category_id FROM tickets);
 UPDATE priorities SET name = N'Low' WHERE name = N'Low QA';
+DELETE FROM login_attempts WHERE email LIKE N'qa-%-$tag@example.test';
 IF NOT EXISTS (SELECT 1 FROM tickets) DBCC CHECKIDENT ('tickets', RESEED, 0) WITH NO_INFOMSGS;
 COMMIT;"
     sqlcmd -S $SqlServer -E -C -b -d TicketManagement -Q $sql
@@ -54,12 +55,12 @@ $admin=SignIn 'jordan@cts4911.local' $AdminPassword
 Check 'Administrator login' ((Request $admin 'tickets.php').Content.Contains('Jordan Black'))
 $anon=New-Object Microsoft.PowerShell.Commands.WebRequestSession
 Check 'Anonymous protected page redirects to login' ((Request $anon 'tickets.php').Content.Contains('<h1>Sign in</h1>'))
+$tag=Get-Date -Format yyyyMMddHHmmss
 $p=Request $anon 'login.php'
-$r=Request $anon 'login.php' @{csrf_token=(Token $p);email='jordan@cts4911.local';password='incorrect-password'}
+$r=Request $anon 'login.php' @{csrf_token=(Token $p);email="qa-nobody-$tag@example.test";password='incorrect-password'}
 Check 'Wrong password rejected' ($r.Content.Contains('incorrect'))
 
 # --- Accounts and access control ---
-$tag=Get-Date -Format yyyyMMddHHmmss
 $password=[guid]::NewGuid().ToString()+'!Aa9'
 $accounts=@{}
 foreach($role in @('employee','technician')){
@@ -185,6 +186,21 @@ Check 'Statuses tab shows workflow' ((Request $admin 'settings.php?tab=statuses'
 $r=Request $admin 'settings.php?tab=audit'
 Check 'Audit log records admin actions' ($r.Content.Contains('user created') -and $r.Content.Contains('user edited') -and $r.Content.Contains('category added') -and $r.Content.Contains('priority renamed') -and $r.Content.Contains('priority SLA changed'))
 Check 'Audit log never shows passwords' (-not $r.Content.Contains($newPassword) -and -not $r.Content.Contains($password))
+
+# --- Sign-in lockout and tunnel HTTPS ---
+$techEmail="qa-technician-$tag@example.test"
+foreach($n in 1..5){
+    $s=New-Object Microsoft.PowerShell.Commands.WebRequestSession; $p=Request $s 'login.php'
+    $null=Request $s 'login.php' @{csrf_token=(Token $p);email=$techEmail;password="wrong-password-$n"}
+}
+$s=New-Object Microsoft.PowerShell.Commands.WebRequestSession; $p=Request $s 'login.php'
+$r=Request $s 'login.php' @{csrf_token=(Token $p);email=$techEmail;password=$password}
+Check 'Account locked after 5 wrong passwords' ($r.Content.Contains('Too many failed sign-in attempts') -and -not (Request $s 'tickets.php').Content.Contains('All Tickets'))
+Check 'Lockout does not block other accounts' ((Request (SignIn "qa-employee-$tag@example.test" $newPassword) 'tickets.php').Content.Contains('My Tickets'))
+$cookie=(Invoke-WebRequest ($base+'login.php') -UseBasicParsing -Headers @{'X-Forwarded-Proto'='https'}).Headers['Set-Cookie']
+Check 'Session cookie is Secure behind the HTTPS tunnel' ($cookie -match '(?i);\s*secure')
+$cookie=(Invoke-WebRequest ($base+'login.php') -UseBasicParsing).Headers['Set-Cookie']
+Check 'Session cookie still works over local HTTP' ($cookie -and $cookie -notmatch '(?i);\s*secure')
 
 # --- Sign out ---
 $null=Request $employee 'logout.php'
