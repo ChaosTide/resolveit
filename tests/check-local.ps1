@@ -14,7 +14,8 @@ function Request($session,$path,$body=$null) {
     if($null -ne $body){ $params.Method='Post'; $params.Body=$body }
     try {
         $r=Invoke-WebRequest @params
-        return [pscustomobject]@{StatusCode=[int]$r.StatusCode; Content=[string]$r.Content}
+        $content=if($r.Content -is [byte[]]){ [Text.Encoding]::UTF8.GetString($r.Content) } else { [string]$r.Content }
+        return [pscustomobject]@{StatusCode=[int]$r.StatusCode; Content=$content; ContentType=[string]$r.Headers['Content-Type']}
     } catch {
         if(-not $_.Exception.Response){ throw }
         $content=if($_.ErrorDetails){ $_.ErrorDetails.Message } else { '' }
@@ -38,7 +39,7 @@ function StatusOf($response){ return [regex]::Match($response.Content,'<strong>S
 function RemoveTestData($tag){
     if($KeepData){ Write-Output "Kept QA data tagged $tag."; return }
     $sql="SET NOCOUNT ON; SET XACT_ABORT ON; BEGIN TRAN;
-DELETE FROM tickets WHERE title LIKE N'QA % $tag';
+DELETE FROM tickets WHERE title LIKE N'QA % $tag' OR requester_id IN (SELECT id FROM users WHERE email LIKE N'qa-%-$tag@example.test');
 DELETE FROM users WHERE email LIKE N'qa-%-$tag@example.test';
 DELETE FROM categories WHERE name = N'QA category $tag' AND id NOT IN (SELECT category_id FROM tickets);
 UPDATE priorities SET name = N'Low' WHERE name = N'Low QA';
@@ -133,9 +134,31 @@ $p=Request $admin "user-edit.php?id=$adminId"
 $r=Request $admin "user-edit.php?id=$adminId" @{csrf_token=(Token $p);id=$adminId;name='Jordan Black';email='jordan@cts4911.local';role='employee';password=''}
 Check 'Administrator cannot demote self' ($r.Content.Contains('You cannot change your own role'))
 
-# --- Reports ---
+# --- Reports and Phase 4 analytics ---
 $r=Request $admin 'reports.php'
-Check 'Reports page loads with all 7 reports' ($r.StatusCode -eq 200 -and (1..7 | ForEach-Object { $r.Content.Contains("<h2>$_.") }) -notcontains $false)
+Check 'Reports page loads with all 8 reports' ($r.StatusCode -eq 200 -and (1..8 | ForEach-Object { $r.Content.Contains("<h2>$_.") }) -notcontains $false)
+# Backdate the open admin ticket past its 24h Medium target so it becomes overdue.
+sqlcmd -S $SqlServer -E -C -b -d TicketManagement -Q "UPDATE tickets SET created_at = DATEADD(hour, -30, SYSDATETIME()) WHERE id = $other" | Out-Null
+$r=Request $admin 'reports.php'
+Check 'Overdue ticket listed by due time' ([regex]::IsMatch($r.Content,"ticket\.php\?id=$other`">#$other</a>.*?sla-overdue",'Singleline'))
+Check 'Technician ticket list flags overdue' ([regex]::IsMatch((Request $tech 'tickets.php').Content,"id=$other`">#$other</a>(?:(?!</tr>).)*sla-overdue",'Singleline'))
+Check 'Ticket page shows SLA due' ((Request $tech "ticket.php?id=$other").Content.Contains('<strong>SLA due</strong>'))
+Check 'Employee view hides SLA details' (-not (Request $employee "ticket.php?id=$id").Content.Contains('SLA due'))
+$r=Request $admin 'reports.php?from=2020-01-01&to=2020-01-31'
+Check 'Date range filter applied' ($r.Content.Contains('Jan 1, 2020') -and $r.Content.Contains('Created in period</span><strong>0<'))
+Check 'Invalid date falls back safely' ((Request $admin 'reports.php?from=not-a-date').Content.Contains('Dates must look like'))
+$range='from='+(Get-Date).AddDays(-2).ToString('yyyy-MM-dd')+'&to='+(Get-Date -Format yyyy-MM-dd)
+$r=Request $admin "reports.php?$range&export=tickets"
+Check 'Ticket CSV export downloads' ($r.ContentType -like 'text/csv*' -and $r.Content.Contains('SLA target (h)'))
+Check 'CSV shows SLA results' ($r.Content -match "(?m)^$id,.*,`"?On time`"?\r?$" -and $r.Content -match "(?m)^$other,.*,Overdue\r?$")
+$p=Request $employee 'ticket-create.php'
+$null=Request $employee 'ticket-create.php' @{csrf_token=(Token $p);title="=HYPERLINK(`"http://example.test`") $tag";description='CSV formula injection test.';category_id=1}
+$r=Request $admin "reports.php?$range&export=tickets"
+Check 'CSV neutralizes spreadsheet formulas' ($r.Content.Contains("'=HYPERLINK") -and -not ($r.Content -match '(?m),"?=HYPERLINK'))
+Check 'Report CSV export (SLA)' ((Request $admin "reports.php?$range&export=sla").Content.Contains('Met SLA'))
+Check 'Unknown export rejected' ((Request $admin 'reports.php?export=nope').StatusCode -eq 404)
+Check 'Employee blocked from CSV export' ((Request $employee 'reports.php?export=tickets').StatusCode -eq 403)
+Check 'Technician blocked from CSV export' ((Request $tech 'reports.php?export=tickets').StatusCode -eq 403)
 
 # --- Settings ---
 $category="QA category $tag"
@@ -149,14 +172,18 @@ Check 'Duplicate category rejected' ($r.Content.Contains('already exists'))
 $r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='category_toggle';id=$categoryId}
 Check 'Deactivated category hidden from ticket form' ($categoryId -ne '' -and -not (Request $employee 'ticket-create.php').Content.Contains($category))
 $p=Request $admin 'settings.php?tab=priorities'
-$lowId=[regex]::Match($p.Content,'name="id" value="(\d+)"><input name="name" maxlength="20" value="Low"').Groups[1].Value
-$null=Request $admin 'settings.php' @{csrf_token=(Token $p);action='priority_rename';id=$lowId;name="Low QA"}
-Check 'Rename priority' ((Request $admin 'settings.php?tab=priorities').Content.Contains('value="Low QA"'))
-$null=Request $admin 'settings.php' @{csrf_token=(Token $p);action='priority_rename';id=$lowId;name='Low'}
-Check 'Priority name restored' ((Request $admin 'settings.php?tab=priorities').Content.Contains('value="Low"'))
+$lowMatch=[regex]::Match($p.Content,'name="id" value="(\d+)"><input name="name" maxlength="20" value="Low"[^>]*><input name="sla_hours"[^>]*value="(\d+)"')
+$lowId=$lowMatch.Groups[1].Value; $lowSla=$lowMatch.Groups[2].Value
+$null=Request $admin 'settings.php' @{csrf_token=(Token $p);action='priority_update';id=$lowId;name="Low QA";sla_hours=48}
+$r=Request $admin 'settings.php?tab=priorities'
+Check 'Rename priority and change SLA target' ($r.Content.Contains('value="Low QA"') -and [regex]::IsMatch($r.Content,'value="Low QA"[^>]*><input name="sla_hours"[^>]*value="48"'))
+$r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='priority_update';id=$lowId;name='Low QA';sla_hours=0}
+Check 'Invalid SLA target rejected' ($r.Content.Contains('SLA target must be a whole number'))
+$null=Request $admin 'settings.php' @{csrf_token=(Token $p);action='priority_update';id=$lowId;name='Low';sla_hours=$lowSla}
+Check 'Priority name and SLA restored' ([regex]::IsMatch((Request $admin 'settings.php?tab=priorities').Content,"value=`"Low`"[^>]*><input name=`"sla_hours`"[^>]*value=`"$lowSla`""))
 Check 'Statuses tab shows workflow' ((Request $admin 'settings.php?tab=statuses').Content.Contains('Assigned'))
 $r=Request $admin 'settings.php?tab=audit'
-Check 'Audit log records admin actions' ($r.Content.Contains('user created') -and $r.Content.Contains('user edited') -and $r.Content.Contains('category added') -and $r.Content.Contains('priority renamed'))
+Check 'Audit log records admin actions' ($r.Content.Contains('user created') -and $r.Content.Contains('user edited') -and $r.Content.Contains('category added') -and $r.Content.Contains('priority renamed') -and $r.Content.Contains('priority SLA changed'))
 Check 'Audit log never shows passwords' (-not $r.Content.Contains($newPassword) -and -not $r.Content.Contains($password))
 
 # --- Sign out ---

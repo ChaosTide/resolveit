@@ -15,7 +15,8 @@ CREATE TABLE users (
  CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 CREATE TABLE categories (id SMALLINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(80) NOT NULL UNIQUE, active BIT NOT NULL CONSTRAINT df_categories_active DEFAULT 1);
-CREATE TABLE priorities (id TINYINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(20) NOT NULL UNIQUE, sort_order TINYINT NOT NULL UNIQUE);
+CREATE TABLE priorities (id TINYINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(20) NOT NULL UNIQUE, sort_order TINYINT NOT NULL UNIQUE,
+ sla_hours SMALLINT NOT NULL CONSTRAINT df_priorities_sla DEFAULT 24 CONSTRAINT ck_priorities_sla CHECK (sla_hours BETWEEN 1 AND 720));
 CREATE TABLE statuses (id TINYINT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(30) NOT NULL UNIQUE, sort_order TINYINT NOT NULL UNIQUE);
 CREATE TABLE tickets (
  id INT IDENTITY(1,1) PRIMARY KEY, requester_id INT NOT NULL, assigned_to INT NULL,
@@ -33,6 +34,7 @@ CREATE TABLE tickets (
 CREATE INDEX idx_ticket_requester ON tickets(requester_id);
 CREATE INDEX idx_ticket_assignee ON tickets(assigned_to);
 CREATE INDEX idx_ticket_status_priority ON tickets(status_id, priority_id);
+CREATE INDEX idx_ticket_created ON tickets(created_at);
 CREATE TABLE ticket_notes (
  id BIGINT IDENTITY(1,1) PRIMARY KEY, ticket_id INT NOT NULL, author_id INT NOT NULL,
  note NVARCHAR(MAX) NOT NULL, created_at DATETIME2(0) NOT NULL CONSTRAINT df_notes_created DEFAULT SYSDATETIME(),
@@ -57,7 +59,7 @@ CREATE TABLE admin_audit_log (
 CREATE INDEX idx_audit_created ON admin_audit_log(created_at);
 INSERT INTO roles (name) VALUES (N'employee'), (N'technician'), (N'administrator');
 INSERT INTO categories (name) VALUES (N'Hardware'), (N'Software'), (N'Network'), (N'Account Access'), (N'Other');
-INSERT INTO priorities (name, sort_order) VALUES (N'Low',1), (N'Medium',2), (N'High',3), (N'Critical',4);
+INSERT INTO priorities (name, sort_order, sla_hours) VALUES (N'Low',1,72), (N'Medium',2,24), (N'High',3,8), (N'Critical',4,4);
 INSERT INTO statuses (name, sort_order) VALUES (N'Open',1), (N'Assigned',2), (N'In Progress',3), (N'Resolved',4), (N'Closed',5);
 GO
 SELECT DB_NAME() AS database_name, (SELECT COUNT(*) FROM sys.tables) AS table_count;

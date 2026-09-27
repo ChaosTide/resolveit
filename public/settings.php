@@ -51,18 +51,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     flash('success', 'Category updated.'); redirect('settings.php?tab=categories');
                 }
             }
-        } elseif ($action === 'priority_rename') {
+        } elseif ($action === 'priority_update') {
             $tab = 'priorities';
+            $slaHours = filter_var($_POST['sla_hours'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 720]]);
             if (!$id) $errors[] = 'Invalid priority.';
             if ($name === '' || mb_strlen($name) > 20) $errors[] = 'Priority name is required and must be at most 20 characters.';
+            if ($slaHours === false) $errors[] = 'SLA target must be a whole number of hours from 1 to 720.';
             if (!$errors) {
-                $old = $pdo->prepare('SELECT name FROM priorities WHERE id=?'); $old->execute([$id]); $oldName = $old->fetchColumn();
-                if ($oldName === false) { $errors[] = 'That priority no longer exists.'; }
-                elseif ($oldName !== $name) {
-                    $pdo->prepare('UPDATE priorities SET name=? WHERE id=?')->execute([$name, $id]);
-                    audit_log($pdo, 'priority renamed', $name, "Was: $oldName");
+                $old = $pdo->prepare('SELECT name, sla_hours FROM priorities WHERE id=?'); $old->execute([$id]); $oldRow = $old->fetch();
+                if (!$oldRow) { $errors[] = 'That priority no longer exists.'; }
+                else {
+                    $pdo->prepare('UPDATE priorities SET name=?, sla_hours=? WHERE id=?')->execute([$name, $slaHours, $id]);
+                    if ($oldRow['name'] !== $name) audit_log($pdo, 'priority renamed', $name, "Was: {$oldRow['name']}");
+                    if ((int) $oldRow['sla_hours'] !== $slaHours) audit_log($pdo, 'priority SLA changed', $name, "{$oldRow['sla_hours']}h -> {$slaHours}h");
+                    flash('success', 'Priority saved.'); redirect('settings.php?tab=priorities');
                 }
-                if (!$errors) { flash('success', 'Priority saved.'); redirect('settings.php?tab=priorities'); }
             }
         } else {
             $errors[] = 'Unknown action.';
@@ -95,11 +98,11 @@ $pageTitle = 'Settings'; require __DIR__ . '/partials/header.php';
 </tbody></table>
 
 <?php elseif ($tab === 'priorities'):
-    $priorities = $pdo->query('SELECT p.id, p.name, p.sort_order, COUNT(t.id) AS tickets FROM priorities p LEFT JOIN tickets t ON t.priority_id=p.id GROUP BY p.id, p.name, p.sort_order ORDER BY p.sort_order')->fetchAll(); ?>
-<p class="meta">Priorities can be renamed. The four levels and their order are fixed; new tickets start at level 2.</p>
-<table><thead><tr><th class="num">Level</th><th>Name</th><th class="num">Tickets</th></tr></thead><tbody>
+    $priorities = $pdo->query('SELECT p.id, p.name, p.sort_order, p.sla_hours, COUNT(t.id) AS tickets FROM priorities p LEFT JOIN tickets t ON t.priority_id=p.id GROUP BY p.id, p.name, p.sort_order, p.sla_hours ORDER BY p.sort_order')->fetchAll(); ?>
+<p class="meta">Priorities can be renamed and given an SLA target: the number of hours a ticket at that priority has to be resolved after it is created. The four levels and their order are fixed; new tickets start at level 2. SLA results appear on the <a href="reports.php">Reports</a> page.</p>
+<table><thead><tr><th class="num">Level</th><th>Name and SLA target (hours)</th><th class="num">Tickets</th></tr></thead><tbody>
 <?php foreach ($priorities as $priority): ?><tr><td class="num"><?= (int) $priority['sort_order'] ?></td>
-<td><form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="priority_rename"><input type="hidden" name="id" value="<?= (int) $priority['id'] ?>"><input name="name" maxlength="20" value="<?= e($priority['name']) ?>" aria-label="Priority name" required><button>Rename</button></form></td>
+<td><form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="priority_update"><input type="hidden" name="id" value="<?= (int) $priority['id'] ?>"><input name="name" maxlength="20" value="<?= e($priority['name']) ?>" aria-label="Priority name" required><input name="sla_hours" type="number" min="1" max="720" step="1" value="<?= (int) $priority['sla_hours'] ?>" aria-label="SLA target in hours for <?= e($priority['name']) ?>" class="hours-input" required><span class="meta">h</span><button>Save</button></form></td>
 <td class="num"><?= (int) $priority['tickets'] ?></td></tr><?php endforeach; ?>
 </tbody></table>
 

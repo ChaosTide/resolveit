@@ -7,7 +7,8 @@ This beginner-friendly PHP/Microsoft SQL Server prototype implements the capston
 - Employees can sign in, create tickets, and view only their own tickets.
 - Technicians can view all tickets, assign them, change priority/status, add technical notes, and record a resolution.
 - Administrators have technician permissions and can create, edit, deactivate, and reset passwords for users.
-- Administrators also get **Reports** (7 reports on ticket volume, workload, and resolution time) and **Settings** (categories, priorities, the status workflow, and an audit log of every admin action).
+- Administrators also get **Reports** and **Settings** (categories, priorities and their SLA targets, the status workflow, and an audit log of every admin action).
+- **Reports (Phase 4 analytics):** 8 reports filtered by a date range (with Last 7 days / Last 30 days / This month / Last 90 days shortcuts), SLA compliance per priority, a list of unresolved tickets ordered by due time, and CSV export of every report plus one row per ticket. Each priority has an SLA target in hours (defaults: Critical 4, High 8, Medium 24, Low 72). Technicians see an **Overdue** flag on the ticket list and the due time on each ticket.
 - Ticket status follows: Open -> Assigned -> In Progress -> Resolved -> Closed. This is enforced on the server (`app/workflow.php`): a ticket moves one step at a time, a Resolved ticket may be reopened to In Progress, and Closed is final.
 - Security controls include password hashing, prepared statements, sessions, CSRF tokens, server-side validation, output escaping, and role checks.
 
@@ -40,10 +41,11 @@ Keep `app`, `database`, `scripts`, and `tests` outside Apache's public document 
 6. Open `http://127.0.0.1:8080` and sign in.
 7. Create technician and employee users from **Manage Users**.
 
-8. Existing databases created before the audit log was added need one migration (safe to run twice):
+8. Databases created from an older `schema.sql` need the migrations, in order (each is safe to run twice):
 
    ```powershell
    sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\001_admin_audit_log.sql
+   sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\002_priority_sla.sql
    ```
 
 9. With the site running, run the automated checks (works in Windows PowerShell 5.1 and PowerShell 7):

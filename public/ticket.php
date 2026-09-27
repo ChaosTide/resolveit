@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
+require_once __DIR__ . '/../app/reports.php';
 require_login();
 $ticketId = valid_id($_GET['id'] ?? null);
 if (!$ticketId) { http_response_code(400); exit('Invalid ticket ID.'); }
-$stmt = $pdo->prepare('SELECT t.*, s.name AS status, p.name AS priority, c.name AS category, requester.name AS requester, assignee.name AS assignee
+$stmt = $pdo->prepare('SELECT t.*, s.name AS status, p.name AS priority, c.name AS category, requester.name AS requester, assignee.name AS assignee,
+    CONVERT(CHAR(16), DATEADD(hour, p.sla_hours, t.created_at), 120) AS due_at, ' . SLA_STATE_SQL . ' AS sla_state
     FROM tickets t JOIN statuses s ON s.id=t.status_id JOIN priorities p ON p.id=t.priority_id JOIN categories c ON c.id=t.category_id
     JOIN users requester ON requester.id=t.requester_id LEFT JOIN users assignee ON assignee.id=t.assigned_to WHERE t.id=?');
 $stmt->execute([$ticketId]); $ticket = $stmt->fetch();
@@ -16,7 +18,7 @@ $historyStmt->execute([$ticketId]); $history = $historyStmt->fetchAll();
 $pageTitle = 'Ticket #' . $ticketId; require __DIR__ . '/partials/header.php';
 ?>
 <h1>Ticket #<?= $ticketId ?>: <?= e($ticket['title']) ?></h1>
-<div class="grid"><div class="card"><strong>Requester</strong><br><?= e($ticket['requester']) ?></div><div class="card"><strong>Category</strong><br><?= e($ticket['category']) ?></div><div class="card"><strong>Priority</strong><br><?= e($ticket['priority']) ?></div><div class="card"><strong>Status</strong><br><?= e($ticket['status']) ?></div><div class="card"><strong>Assigned to</strong><br><?= e($ticket['assignee'] ?? 'Unassigned') ?></div></div>
+<div class="grid"><div class="card"><strong>Requester</strong><br><?= e($ticket['requester']) ?></div><div class="card"><strong>Category</strong><br><?= e($ticket['category']) ?></div><div class="card"><strong>Priority</strong><br><?= e($ticket['priority']) ?></div><div class="card"><strong>Status</strong><br><?= e($ticket['status']) ?></div><div class="card"><strong>Assigned to</strong><br><?= e($ticket['assignee'] ?? 'Unassigned') ?></div><?php if (has_role('technician', 'administrator')): ?><div class="card"><strong>SLA due</strong><br><?= e($ticket['due_at']) ?> <span class="sla sla-<?= e(strtolower(str_replace(' ', '-', $ticket['sla_state']))) ?>"><?= e($ticket['sla_state']) ?></span></div><?php endif; ?></div>
 <section class="card"><h2>Description</h2><p><?= nl2br(e($ticket['description'])) ?></p><?php if ($ticket['resolution']): ?><h2>Resolution</h2><p><?= nl2br(e($ticket['resolution'])) ?></p><?php endif; ?></section>
 <?php if (has_role('technician', 'administrator')): ?><p><a class="button" href="ticket-edit.php?id=<?= $ticketId ?>">Manage Ticket</a></p><?php endif; ?>
 <section class="card"><h2>Technical notes</h2><?php foreach ($notes as $note): ?><article><p><?= nl2br(e($note['note'])) ?></p><p class="meta">By <?= e($note['author']) ?> on <?= e($note['created_at']) ?></p></article><?php endforeach; ?><?php if (!$notes): ?><p>No notes yet.</p><?php endif; ?></section>

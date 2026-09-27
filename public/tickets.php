@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
+require_once __DIR__ . '/../app/reports.php';
 require_login();
 $baseSql = 'SELECT t.id, t.title, t.created_at, t.updated_at, t.requester_id,
                    s.name AS status, p.name AS priority, c.name AS category,
-                   requester.name AS requester, assignee.name AS assignee
+                   requester.name AS requester, assignee.name AS assignee,
+                   ' . SLA_STATE_SQL . ' AS sla_state
             FROM tickets t
             JOIN statuses s ON s.id = t.status_id
             JOIN priorities p ON p.id = t.priority_id
@@ -30,7 +32,7 @@ require __DIR__ . '/partials/header.php';
         <tr>
             <td><a href="ticket.php?id=<?= (int) $ticket['id'] ?>">#<?= (int) $ticket['id'] ?></a></td>
             <td><?= e($ticket['title']) ?></td><td><?= e($ticket['requester']) ?></td><td><?= e($ticket['category']) ?></td>
-            <td><?= e($ticket['priority']) ?></td><td><?= e($ticket['status']) ?></td><td><?= e($ticket['assignee'] ?? 'Unassigned') ?></td>
+            <td><?= e($ticket['priority']) ?></td><td><?= e($ticket['status']) ?><?php if (!has_role('employee') && $ticket['sla_state'] === 'Overdue'): ?> <span class="sla sla-overdue">Overdue</span><?php endif; ?></td><td><?= e($ticket['assignee'] ?? 'Unassigned') ?></td>
         </tr>
     <?php endforeach; ?>
     <?php if (!$tickets): ?><tr><td colspan="7">No tickets found.</td></tr><?php endif; ?>

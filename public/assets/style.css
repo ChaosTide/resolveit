@@ -30,9 +30,22 @@ th { background: #e8eef5; }
 .tabs a[aria-current="page"] { background: #12355b; color: white; }
 .inline-form { display: flex; gap: .5rem; align-items: center; }
 .inline-form input { flex: 1; }
+.inline-form .hours-input { flex: 0 0 6rem; }
 .inline-form button { margin-top: 0; white-space: nowrap; }
 td form button { margin-top: 0; }
 button.secondary { background: #536273; }
+.range-form { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+.range-form label { margin-top: 0; }
+.range-form input { width: auto; }
+.presets a { margin-right: 1rem; }
+.report-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.alert-stat { border-color: #c0392b; }
+.alert-stat strong { color: #a61b1b; }
+.sla { display: inline-block; padding: .1rem .5rem; border-radius: 1rem; font-size: .85rem; white-space: nowrap; }
+.sla-overdue, .sla-late { background: #f9dddd; color: #8b1e1e; }
+.sla-on-time { background: #dff3e4; color: #1d5b2c; }
+.sla-on-track { background: #e8eef5; color: #12355b; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 footer { text-align: center; color: #536273; padding: 2rem; }
 @media (max-width: 650px) { .site-header { align-items: flex-start; flex-direction: column; } .site-header nav a { display: block; margin: .4rem 0; } table { display: block; overflow-x: auto; } }
 
