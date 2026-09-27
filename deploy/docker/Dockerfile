@@ -20,6 +20,7 @@ RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY deploy/docker/php-cts4911.ini "$PHP_INI_DIR/conf.d/zz-cts4911.ini"
 COPY deploy/docker/apache-cts4911.conf /etc/apache2/sites-available/000-default.conf
 RUN a2enmod headers \
+    && echo 'ServerName localhost' > /etc/apache2/conf-available/servername.conf && a2enconf servername \
     && sed -ri 's/^ServerTokens .*/ServerTokens Prod/; s/^ServerSignature .*/ServerSignature Off/' /etc/apache2/conf-available/security.conf
 
 WORKDIR /var/www/app
