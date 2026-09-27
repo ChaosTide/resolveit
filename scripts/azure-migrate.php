@@ -23,9 +23,37 @@ if (!$pdo->query("SELECT OBJECT_ID('dbo.capstone_migrations')")->fetchColumn()) 
         foreach($names as $prefix=>$name) {
             $insert->execute([$name,$prefix.'@students.uwf.edu',password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT),$prefix==='jlb282'?'administrator':'employee']);
         }
-        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1)');
+        // schema.sql already contains migrations 2 (audit log) and 3 (SLA), so mark them applied.
+        $pdo->exec('INSERT INTO dbo.capstone_migrations(id) VALUES(1),(2),(3)');
         $pdo->commit();
         echo "Cloud schema and six team accounts created.\n";
     } catch(Throwable $e) { $pdo->rollBack(); throw $e; }
+}
+// Upgrades for cloud databases created before later features (mirrors database/migrations/*.sql).
+$upgrades = [
+    2 => ["IF OBJECT_ID(N'admin_audit_log', N'U') IS NULL BEGIN
+            CREATE TABLE admin_audit_log (id BIGINT IDENTITY(1,1) PRIMARY KEY, admin_id INT NOT NULL,
+             action NVARCHAR(60) NOT NULL, target NVARCHAR(190) NULL, details NVARCHAR(500) NULL,
+             created_at DATETIME2(0) NOT NULL CONSTRAINT df_audit_created DEFAULT SYSDATETIME(),
+             CONSTRAINT fk_audit_admin FOREIGN KEY (admin_id) REFERENCES users(id));
+            CREATE INDEX idx_audit_created ON admin_audit_log(created_at);
+          END"],
+    3 => ["IF COL_LENGTH(N'priorities', N'sla_hours') IS NULL
+            ALTER TABLE priorities ADD sla_hours SMALLINT NOT NULL CONSTRAINT df_priorities_sla DEFAULT 24
+             CONSTRAINT ck_priorities_sla CHECK (sla_hours BETWEEN 1 AND 720)",
+          "UPDATE priorities SET sla_hours = CASE sort_order WHEN 1 THEN 72 WHEN 2 THEN 24 WHEN 3 THEN 8 WHEN 4 THEN 4 ELSE sla_hours END",
+          "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_ticket_created' AND object_id = OBJECT_ID(N'tickets'))
+            CREATE INDEX idx_ticket_created ON tickets(created_at)"],
+];
+$applied = array_map('intval', $pdo->query('SELECT id FROM dbo.capstone_migrations')->fetchAll(PDO::FETCH_COLUMN));
+foreach ($upgrades as $id => $statements) {
+    if (in_array($id, $applied, true)) continue;
+    $pdo->beginTransaction();
+    try {
+        foreach ($statements as $sql) $pdo->exec($sql);
+        $pdo->prepare('INSERT INTO dbo.capstone_migrations(id) VALUES(?)')->execute([$id]);
+        $pdo->commit();
+        echo "Applied cloud migration $id.\n";
+    } catch (Throwable $e) { $pdo->rollBack(); throw $e; }
 }
 echo 'Cloud table count: '.$pdo->query('SELECT COUNT(*) FROM sys.tables')->fetchColumn()."\n";
