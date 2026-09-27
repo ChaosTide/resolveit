@@ -72,12 +72,11 @@ $firstName = explode(' ', current_user()['name'])[0];
     <?= ticket_table($queue, true, 'Nothing assigned to you right now.') ?>
 </section>
 
-<div class="two-col">
-    <section class="card flush">
+<section class="card flush">
         <div class="card-header"><h2>Needs attention</h2><a href="tickets.php?view=overdue">Overdue list</a></div>
         <?= ticket_table($attention, true, 'No overdue or unassigned tickets. The queue is healthy.') ?>
-    </section>
-    <section class="card">
+</section>
+<section class="card">
         <h2>Recent activity</h2>
         <?php if (!$activity): ?><p class="meta">No ticket activity yet.</p><?php endif; ?>
         <ul class="timeline">
@@ -87,8 +86,7 @@ $firstName = explode(' ', current_user()['name'])[0];
                 <div class="when"><?= relative_time($item['created_at']) ?> &middot; <?= e(mb_strimwidth($item['title'], 0, 40, '…')) ?></div></li>
         <?php endforeach; ?>
         </ul>
-    </section>
-</div>
+</section>
 <?php else: ?>
 <div class="grid">
     <?= kpi_tile('Open requests', $kpi['open_count'], 'inbox', 'primary', 'tickets.php?view=open', 'Being worked on') ?>
