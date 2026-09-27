@@ -1,0 +1,131 @@
+<?php
+require_once __DIR__ . '/../app/bootstrap.php';
+require_role('administrator');
+$tabs = ['categories' => 'Categories', 'priorities' => 'Priorities', 'statuses' => 'Statuses', 'audit' => 'Audit Log'];
+$tab = array_key_exists($_GET['tab'] ?? '', $tabs) ? $_GET['tab'] : 'categories';
+$errors = [];
+
+function unique_error(PDOException $ex, string $thing): string
+{
+    return $ex->getCode() === '23000' ? "A $thing with that name already exists." : "The $thing could not be saved.";
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $action = clean_text($_POST['action'] ?? '');
+    $name = clean_text($_POST['name'] ?? '');
+    $id = valid_id($_POST['id'] ?? null);
+    try {
+        if ($action === 'category_add') {
+            $tab = 'categories';
+            if ($name === '' || mb_strlen($name) > 80) $errors[] = 'Category name is required and must be at most 80 characters.';
+            if (!$errors) {
+                $pdo->prepare('INSERT INTO categories (name) VALUES (?)')->execute([$name]);
+                audit_log($pdo, 'category added', $name);
+                flash('success', 'Category added.'); redirect('settings.php?tab=categories');
+            }
+        } elseif ($action === 'category_rename') {
+            $tab = 'categories';
+            if (!$id) $errors[] = 'Invalid category.';
+            if ($name === '' || mb_strlen($name) > 80) $errors[] = 'Category name is required and must be at most 80 characters.';
+            if (!$errors) {
+                $old = $pdo->prepare('SELECT name FROM categories WHERE id=?'); $old->execute([$id]); $oldName = $old->fetchColumn();
+                if ($oldName === false) { $errors[] = 'That category no longer exists.'; }
+                elseif ($oldName !== $name) {
+                    $pdo->prepare('UPDATE categories SET name=? WHERE id=?')->execute([$name, $id]);
+                    audit_log($pdo, 'category renamed', $name, "Was: $oldName");
+                }
+                if (!$errors) { flash('success', 'Category saved.'); redirect('settings.php?tab=categories'); }
+            }
+        } elseif ($action === 'category_toggle') {
+            $tab = 'categories';
+            if (!$id) $errors[] = 'Invalid category.';
+            if (!$errors) {
+                $stmt = $pdo->prepare('SELECT name, active FROM categories WHERE id=?'); $stmt->execute([$id]); $category = $stmt->fetch();
+                $activeCount = (int) $pdo->query('SELECT COUNT(*) FROM categories WHERE active=1')->fetchColumn();
+                if (!$category) $errors[] = 'That category no longer exists.';
+                elseif ($category['active'] && $activeCount <= 1) $errors[] = 'At least one category must stay active so employees can submit tickets.';
+                else {
+                    $pdo->prepare('UPDATE categories SET active = CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id=?')->execute([$id]);
+                    audit_log($pdo, $category['active'] ? 'category deactivated' : 'category activated', $category['name']);
+                    flash('success', 'Category updated.'); redirect('settings.php?tab=categories');
+                }
+            }
+        } elseif ($action === 'priority_rename') {
+            $tab = 'priorities';
+            if (!$id) $errors[] = 'Invalid priority.';
+            if ($name === '' || mb_strlen($name) > 20) $errors[] = 'Priority name is required and must be at most 20 characters.';
+            if (!$errors) {
+                $old = $pdo->prepare('SELECT name FROM priorities WHERE id=?'); $old->execute([$id]); $oldName = $old->fetchColumn();
+                if ($oldName === false) { $errors[] = 'That priority no longer exists.'; }
+                elseif ($oldName !== $name) {
+                    $pdo->prepare('UPDATE priorities SET name=? WHERE id=?')->execute([$name, $id]);
+                    audit_log($pdo, 'priority renamed', $name, "Was: $oldName");
+                }
+                if (!$errors) { flash('success', 'Priority saved.'); redirect('settings.php?tab=priorities'); }
+            }
+        } else {
+            $errors[] = 'Unknown action.';
+        }
+    } catch (PDOException $ex) {
+        $errors[] = unique_error($ex, str_starts_with($action, 'priority') ? 'priority' : 'category');
+    }
+}
+
+$pageTitle = 'Settings'; require __DIR__ . '/partials/header.php';
+?>
+<h1>System settings</h1>
+<nav class="tabs" aria-label="Settings sections">
+<?php foreach ($tabs as $key => $label): ?><a href="settings.php?tab=<?= $key ?>" <?= $tab === $key ? 'aria-current="page"' : '' ?>><?= $label ?></a><?php endforeach; ?>
+</nav>
+<?php foreach ($errors as $error): ?><p class="errors"><?= e($error) ?></p><?php endforeach; ?>
+
+<?php if ($tab === 'categories'):
+    $categories = $pdo->query('SELECT c.id, c.name, c.active, COUNT(t.id) AS tickets FROM categories c LEFT JOIN tickets t ON t.category_id=c.id GROUP BY c.id, c.name, c.active ORDER BY c.name')->fetchAll(); ?>
+<section class="card"><h2>Add category</h2>
+<form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="category_add">
+<input name="name" maxlength="80" placeholder="New category name" aria-label="New category name" required><button>Add Category</button></form></section>
+<p class="meta">Categories are never deleted because existing tickets use them. Deactivate a category to hide it from the New Ticket form.</p>
+<table><thead><tr><th>Name</th><th class="num">Tickets</th><th>Active</th><th>Deactivate / activate</th></tr></thead><tbody>
+<?php foreach ($categories as $category): ?><tr>
+<td><form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="category_rename"><input type="hidden" name="id" value="<?= (int) $category['id'] ?>"><input name="name" maxlength="80" value="<?= e($category['name']) ?>" aria-label="Category name" required><button>Rename</button></form></td>
+<td class="num"><?= (int) $category['tickets'] ?></td><td><?= $category['active'] ? 'Yes' : 'No' ?></td>
+<td><form method="post"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="category_toggle"><input type="hidden" name="id" value="<?= (int) $category['id'] ?>"><button class="<?= $category['active'] ? 'secondary' : '' ?>"><?= $category['active'] ? 'Deactivate' : 'Activate' ?></button></form></td>
+</tr><?php endforeach; ?>
+</tbody></table>
+
+<?php elseif ($tab === 'priorities'):
+    $priorities = $pdo->query('SELECT p.id, p.name, p.sort_order, COUNT(t.id) AS tickets FROM priorities p LEFT JOIN tickets t ON t.priority_id=p.id GROUP BY p.id, p.name, p.sort_order ORDER BY p.sort_order')->fetchAll(); ?>
+<p class="meta">Priorities can be renamed. The four levels and their order are fixed; new tickets start at level 2.</p>
+<table><thead><tr><th class="num">Level</th><th>Name</th><th class="num">Tickets</th></tr></thead><tbody>
+<?php foreach ($priorities as $priority): ?><tr><td class="num"><?= (int) $priority['sort_order'] ?></td>
+<td><form method="post" class="inline-form"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="priority_rename"><input type="hidden" name="id" value="<?= (int) $priority['id'] ?>"><input name="name" maxlength="20" value="<?= e($priority['name']) ?>" aria-label="Priority name" required><button>Rename</button></form></td>
+<td class="num"><?= (int) $priority['tickets'] ?></td></tr><?php endforeach; ?>
+</tbody></table>
+
+<?php elseif ($tab === 'statuses'):
+    $statuses = $pdo->query('SELECT s.id, s.name, s.sort_order, COUNT(t.id) AS tickets FROM statuses s LEFT JOIN tickets t ON t.status_id=s.id GROUP BY s.id, s.name, s.sort_order ORDER BY s.sort_order')->fetchAll(); ?>
+<p class="meta">Statuses are locked because the ticket workflow is built on them. Tickets move one step at a time; a Resolved ticket can be reopened to In Progress; Closed is final.</p>
+<table><thead><tr><th class="num">Step</th><th>Status</th><th>Can move to</th><th class="num">Tickets</th></tr></thead><tbody>
+<?php $names = array_column($statuses, 'name', 'id');
+foreach ($statuses as $status):
+    $next = array_map(fn ($id) => $names[$id], array_diff(allowed_status_ids($statuses, (int) $status['id']), [(int) $status['id']])); ?>
+<tr><td class="num"><?= (int) $status['sort_order'] ?></td><td><?= e($status['name']) ?></td><td><?= $next ? e(implode(', ', $next)) : '<span class="meta">Final</span>' ?></td><td class="num"><?= (int) $status['tickets'] ?></td></tr>
+<?php endforeach; ?>
+</tbody></table>
+
+<?php else:
+    $audit = $pdo->query('SELECT TOP 100 a.created_at, u.name AS admin, a.action, a.target, a.details FROM admin_audit_log a JOIN users u ON u.id=a.admin_id ORDER BY a.id DESC')->fetchAll();
+    $history = $pdo->query('SELECT TOP 50 h.created_at, u.name AS changed_by, h.ticket_id, h.action, h.old_value, h.new_value FROM ticket_history h JOIN users u ON u.id=h.changed_by ORDER BY h.id DESC')->fetchAll(); ?>
+<section class="card"><h2>Administrator actions</h2><p class="meta">Latest 100 user and settings changes. Passwords are never recorded.</p>
+<table><thead><tr><th>When</th><th>Administrator</th><th>Action</th><th>Target</th><th>Details</th></tr></thead><tbody>
+<?php foreach ($audit as $row): ?><tr><td><?= e($row['created_at']) ?></td><td><?= e($row['admin']) ?></td><td><?= e($row['action']) ?></td><td><?= e($row['target']) ?></td><td><?= e($row['details']) ?></td></tr><?php endforeach; ?>
+<?php if (!$audit): ?><tr><td colspan="5">No administrator actions recorded yet.</td></tr><?php endif; ?>
+</tbody></table></section>
+<section class="card"><h2>Recent ticket changes</h2>
+<table><thead><tr><th>When</th><th>By</th><th>Ticket</th><th>Change</th></tr></thead><tbody>
+<?php foreach ($history as $row): ?><tr><td><?= e($row['created_at']) ?></td><td><?= e($row['changed_by']) ?></td><td><a href="ticket.php?id=<?= (int) $row['ticket_id'] ?>">#<?= (int) $row['ticket_id'] ?></a></td>
+<td><?= e($row['action']) ?><?= $row['old_value'] !== null && $row['old_value'] !== '' ? ': ' . e($row['old_value']) . ' &rarr; ' : ($row['new_value'] ? ': ' : '') ?><?= e($row['new_value']) ?></td></tr><?php endforeach; ?>
+</tbody></table></section>
+<?php endif; ?>
+<?php require __DIR__ . '/partials/footer.php'; ?>

@@ -14,7 +14,7 @@
         <nav aria-label="Main navigation">
             <a href="tickets.php">Tickets</a>
             <a href="ticket-create.php">New Ticket</a>
-            <?php if (has_role('administrator')): ?><a href="users.php">Manage Users</a><?php endif; ?>
+            <?php if (has_role('administrator')): ?><a href="users.php">Manage Users</a><a href="reports.php">Reports</a><a href="settings.php">Settings</a><?php endif; ?>
             <a href="logout.php">Sign Out</a>
         </nav>
     <?php endif; ?>

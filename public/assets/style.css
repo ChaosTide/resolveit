@@ -20,6 +20,19 @@ th { background: #e8eef5; }
 .errors { color: #8b1e1e; }
 .meta { color: #536273; font-size: .92rem; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.stat strong { display: block; font-size: 2rem; margin-top: .25rem; }
+.report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 0 1rem; }
+.bar-cell { width: 45%; }
+.bar { display: block; height: .8rem; min-width: 2px; background: #1261a0; border-radius: .2rem; }
+.tabs { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 2px solid #d9dee5; margin-bottom: 1rem; }
+.tabs a { padding: .6rem 1rem; color: #12355b; text-decoration: none; border-radius: .3rem .3rem 0 0; }
+.tabs a[aria-current="page"] { background: #12355b; color: white; }
+.inline-form { display: flex; gap: .5rem; align-items: center; }
+.inline-form input { flex: 1; }
+.inline-form button { margin-top: 0; white-space: nowrap; }
+td form button { margin-top: 0; }
+button.secondary { background: #536273; }
 footer { text-align: center; color: #536273; padding: 2rem; }
 @media (max-width: 650px) { .site-header { align-items: flex-start; flex-direction: column; } .site-header nav a { display: block; margin: .4rem 0; } table { display: block; overflow-x: auto; } }
 

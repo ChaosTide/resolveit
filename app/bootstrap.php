@@ -19,6 +19,8 @@ $config = require $configFile;
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/validation.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/workflow.php';
+require_once __DIR__ . '/audit.php';
 
 session_name($config['session']['name']);
 session_set_cookie_params([

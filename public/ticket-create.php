@@ -12,7 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$check->fetchColumn()) { $errors[] = 'The selected category is unavailable.'; }
     if (!$errors) {
         $openId = (int) $pdo->query("SELECT id FROM statuses WHERE name = 'Open'")->fetchColumn();
-        $mediumId = (int) $pdo->query("SELECT id FROM priorities WHERE name = 'Medium'")->fetchColumn();
+        // Default priority is the second level (Medium) by sort order, so renaming it in Settings is safe.
+        $mediumId = (int) $pdo->query('SELECT id FROM priorities WHERE sort_order = 2')->fetchColumn();
         $pdo->beginTransaction();
         $stmt = $pdo->prepare('INSERT INTO tickets (requester_id, category_id, priority_id, status_id, title, description) OUTPUT INSERTED.id VALUES (?, ?, ?, ?, ?, ?)');
         $stmt->execute([current_user()['id'], $data['category_id'], $mediumId, $openId, $data['title'], $data['description']]);

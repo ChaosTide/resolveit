@@ -48,6 +48,13 @@ CREATE TABLE ticket_history (
  CONSTRAINT fk_history_user FOREIGN KEY (changed_by) REFERENCES users(id)
 );
 CREATE INDEX idx_history_ticket ON ticket_history(ticket_id, created_at);
+CREATE TABLE admin_audit_log (
+ id BIGINT IDENTITY(1,1) PRIMARY KEY, admin_id INT NOT NULL,
+ action NVARCHAR(60) NOT NULL, target NVARCHAR(190) NULL, details NVARCHAR(500) NULL,
+ created_at DATETIME2(0) NOT NULL CONSTRAINT df_audit_created DEFAULT SYSDATETIME(),
+ CONSTRAINT fk_audit_admin FOREIGN KEY (admin_id) REFERENCES users(id)
+);
+CREATE INDEX idx_audit_created ON admin_audit_log(created_at);
 INSERT INTO roles (name) VALUES (N'employee'), (N'technician'), (N'administrator');
 INSERT INTO categories (name) VALUES (N'Hardware'), (N'Software'), (N'Network'), (N'Account Access'), (N'Other');
 INSERT INTO priorities (name, sort_order) VALUES (N'Low',1), (N'Medium',2), (N'High',3), (N'Critical',4);

@@ -6,8 +6,9 @@ This beginner-friendly PHP/Microsoft SQL Server prototype implements the capston
 
 - Employees can sign in, create tickets, and view only their own tickets.
 - Technicians can view all tickets, assign them, change priority/status, add technical notes, and record a resolution.
-- Administrators have technician permissions and can create or deactivate users.
-- Ticket status follows: Open -> Assigned -> In Progress -> Resolved -> Closed.
+- Administrators have technician permissions and can create, edit, deactivate, and reset passwords for users.
+- Administrators also get **Reports** (7 reports on ticket volume, workload, and resolution time) and **Settings** (categories, priorities, the status workflow, and an audit log of every admin action).
+- Ticket status follows: Open -> Assigned -> In Progress -> Resolved -> Closed. This is enforced on the server (`app/workflow.php`): a ticket moves one step at a time, a Resolved ticket may be reopened to In Progress, and Closed is final.
 - Security controls include password hashing, prepared statements, sessions, CSRF tokens, server-side validation, output escaping, and role checks.
 
 ## 2. Folder map
@@ -38,6 +39,18 @@ Keep `app`, `database`, `scripts`, and `tests` outside Apache's public document 
 
 6. Open `http://127.0.0.1:8080` and sign in.
 7. Create technician and employee users from **Manage Users**.
+
+8. Existing databases created before the audit log was added need one migration (safe to run twice):
+
+   ```powershell
+   sqlcmd -S "WORKSTATION\JLB282" -E -C -i database\migrations\001_admin_audit_log.sql
+   ```
+
+9. With the site running, run the automated checks (works in Windows PowerShell 5.1 and PowerShell 7):
+
+   ```powershell
+   .\tests\check-local.ps1 -AdminPassword '<admin password>'
+   ```
 
 The included PHP server is for local classroom testing. Apache or IIS can be configured later for a deployment demonstration.
 
