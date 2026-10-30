@@ -26,7 +26,7 @@ require __DIR__ . '/partials/header.php';
 <section class="card">
     <h1>Sign in</h1>
     <p class="meta">IT help desk for CTS 4911. Use the email and password your administrator gave you.</p>
-    <?php foreach ($errors as $error): ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
+    <?php foreach ($errors as $error) : ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
         <label for="email">Email</label>

@@ -46,63 +46,76 @@ if ($c['q'] !== '') {
         $parts[] = "EXISTS (SELECT 1 FROM ticket_notes n WHERE n.ticket_id = q.id AND n.note LIKE ? ESCAPE '\\')";
         $params[] = $like;
     }
-    if (ctype_digit($idSearch) && strlen($idSearch) < 10) { $parts[] = 'q.id = ?'; $params[] = (int) $idSearch; }
+    if (ctype_digit($idSearch) && strlen($idSearch) < 10) { $parts[] = 'q.id = ?';
+        $params[] = (int) $idSearch; }
     $where[] = '(' . implode(' OR ', $parts) . ')';
 }
 foreach (['statuses' => 'q.status_id', 'priorities' => 'q.priority_id'] as $key => $column) {
-    if ($c[$key]) { $where[] = "$column IN (" . implode(',', array_fill(0, count($c[$key]), '?')) . ')'; $params = array_merge($params, $c[$key]); }
+    if ($c[$key]) { $where[] = "$column IN (" . implode(',', array_fill(0, count($c[$key]), '?')) . ')';
+        $params = array_merge($params, $c[$key]); }
 }
 foreach (['category' => 'q.category_id', 'requester' => 'q.requester_id', 'organization' => 'q.requester_organization_id', 'sla' => 'q.sla_state'] as $key => $column) {
-    if ($c[$key]) { $where[] = "$column = ?"; $params[] = $c[$key]; }
+    if ($c[$key]) { $where[] = "$column = ?";
+        $params[] = $c[$key]; }
 }
-if ($c['assignee'] === 'me') { $where[] = 'q.assigned_to = ?'; $params[] = $me; }
-elseif ($c['assignee'] === 'none') { $where[] = 'q.assigned_to IS NULL'; }
-elseif ($c['assignee']) { $where[] = 'q.assigned_to = ?'; $params[] = $c['assignee']; }
-if ($c['waiting']) { $where[] = 'q.status_order < ? AND q.waiting = 1'; $params[] = $resolvedOrder; }
-if ($c['has_due']) $where[] = 'q.due_date IS NOT NULL';
+if ($c['assignee'] === 'me') { $where[] = 'q.assigned_to = ?';
+    $params[] = $me;
+} elseif ($c['assignee'] === 'none') { $where[] = 'q.assigned_to IS NULL';
+} elseif ($c['assignee']) { $where[] = 'q.assigned_to = ?';
+    $params[] = $c['assignee']; }
+if ($c['waiting']) { $where[] = 'q.status_order < ? AND q.waiting = 1';
+    $params[] = $resolvedOrder; }
+if ($c['has_due']) { $where[] = 'q.due_date IS NOT NULL';
+}
 foreach ($dateFields as $key => [$column]) {
     [$from, $to] = $dates[$key];
-    if ($from) { $where[] = "$column >= ?"; $params[] = $from->format('Y-m-d'); }
-    if ($to) { $where[] = "$column < ?"; $params[] = $to->modify('+1 day')->format('Y-m-d'); }
+    if ($from) { $where[] = "$column >= ?";
+        $params[] = $from->format('Y-m-d'); }
+    if ($to) { $where[] = "$column < ?";
+        $params[] = $to->modify('+1 day')->format('Y-m-d'); }
 }
-$whereSql = implode(' AND ', $where);
-$list = ticket_query_sql();
-[$sort, $dir] = ticket_sort_from_query($_GET, $staff, 'updated');
-$orderBy = ticket_order_sql($sort, $dir, $resolvedOrder);
+    $whereSql = implode(' AND ', $where);
+    $list = ticket_query_sql();
+    [$sort, $dir] = ticket_sort_from_query($_GET, $staff, 'updated');
+    $orderBy = ticket_order_sql($sort, $dir, $resolvedOrder);
 
 // The query string without sort/page, rebuilt from validated values only.
-$query = array_filter([
+    $query = array_filter([
     'q' => $c['q'] ?: null, 'in_notes' => $c['in_notes'] ? 1 : null, 'status' => $c['statuses'] ?: null, 'priority' => $c['priorities'] ?: null,
     'category' => $c['category'], 'requester' => $c['requester'], 'assignee' => $c['assignee'], 'organization' => $c['organization'],
     'sla' => $c['sla'], 'waiting' => $c['waiting'] ? 1 : null, 'has_due' => $c['has_due'] ? 1 : null,
-], fn ($v) => $v !== null && $v !== '');
-foreach ($dates as $key => [$from, $to]) {
-    if ($from) $query[$key . '_from'] = $from->format('Y-m-d');
-    if ($to) $query[$key . '_to'] = $to->format('Y-m-d');
-}
-$searched = $query !== [];
+    ], fn ($v) => $v !== null && $v !== '');
+    foreach ($dates as $key => [$from, $to]) {
+        if ($from) { $query[$key . '_from'] = $from->format('Y-m-d');
+        }
+        if ($to) { $query[$key . '_to'] = $to->format('Y-m-d');
+        }
+    }
+    $searched = $query !== [];
 
-if (($_GET['format'] ?? '') === 'stamp') send_stamp(ticket_stamp($pdo, $whereSql, $params));
-if (($_GET['export'] ?? '') === 'csv') {
-    $all = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy");
-    $all->execute($params);
-    send_csv('cts4911-search-' . date('Y-m-d') . '.csv', ticket_csv_columns($staff), array_map('ticket_csv_row', $all->fetchAll()));
-}
+    if (($_GET['format'] ?? '') === 'stamp') { send_stamp(ticket_stamp($pdo, $whereSql, $params));
+    }
+    if (($_GET['export'] ?? '') === 'csv') {
+        $all = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy");
+        $all->execute($params);
+        send_csv('cts4911-search-' . date('Y-m-d') . '.csv', ticket_csv_columns($staff), array_map('ticket_csv_row', $all->fetchAll()));
+    }
 
-$count = $pdo->prepare("SELECT COUNT(*) FROM ($list) q WHERE $whereSql");
-$count->execute($params);
-$total = (int) $count->fetchColumn();
-$pages = max(1, (int) ceil($total / $perPage));
-$page = min(max(1, (int) ($_GET['page'] ?? 1)), $pages);
-$offset = ($page - 1) * $perPage;
-$stmt = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY");
-$stmt->execute($params);
-$tickets = $stmt->fetchAll();
-$activeQuery = $query + ['sort' => $sort, 'dir' => $dir];
+    $count = $pdo->prepare("SELECT COUNT(*) FROM ($list) q WHERE $whereSql");
+    $count->execute($params);
+    $total = (int) $count->fetchColumn();
+    $pages = max(1, (int) ceil($total / $perPage));
+    $page = min(max(1, (int) ($_GET['page'] ?? 1)), $pages);
+    $offset = ($page - 1) * $perPage;
+    $stmt = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY");
+    $stmt->execute($params);
+    $tickets = $stmt->fetchAll();
+    $activeQuery = $query + ['sort' => $sort, 'dir' => $dir];
 
-$pageTitle = 'Advanced Search'; require __DIR__ . '/partials/header.php';
-$checked = fn (array $list, int $id) => in_array($id, $list, true) ? ' checked' : '';
-?>
+    $pageTitle = 'Advanced Search';
+    require __DIR__ . '/partials/header.php';
+    $checked = fn (array $list, int $id) => in_array($id, $list, true) ? ' checked' : '';
+    ?>
 <div class="page-header">
     <div><p class="breadcrumb"><a href="tickets.php"><?= $staff ? 'Tickets' : 'My Tickets' ?></a> / Advanced search</p>
         <h1>Advanced search</h1><p class="subtitle">Combine any fields. Bookmark the page to save a search.</p></div>
@@ -112,27 +125,27 @@ $checked = fn (array $list, int $id) => in_array($id, $list, true) ? ' checked' 
         <div class="span-2"><label for="s-q">Keywords</label><input id="s-q" type="search" name="q" value="<?= e($c['q']) ?>" placeholder="Words in the title, description, or resolution, or a ticket #">
             <label class="checkbox-label"><input type="checkbox" name="in_notes" value="1"<?= $c['in_notes'] ? ' checked' : '' ?>> Also search replies and notes</label></div>
         <div><label for="s-category">Category</label><select id="s-category" name="category"><option value="">Any</option>
-            <?php foreach ($categories as $cat): ?><option value="<?= (int) $cat['id'] ?>"<?= $c['category'] === (int) $cat['id'] ? ' selected' : '' ?>><?= e($cat['name']) ?></option><?php endforeach; ?></select></div>
-        <?php if ($staff): ?>
+            <?php foreach ($categories as $cat) : ?><option value="<?= (int) $cat['id'] ?>"<?= $c['category'] === (int) $cat['id'] ? ' selected' : '' ?>><?= e($cat['name']) ?></option><?php endforeach; ?></select></div>
+        <?php if ($staff) : ?>
         <div><label for="s-requester">Requester</label><select id="s-requester" name="requester"><option value="">Anyone</option>
-            <?php foreach ($people as $person): ?><option value="<?= (int) $person['id'] ?>"<?= $c['requester'] === (int) $person['id'] ? ' selected' : '' ?>><?= e($person['name']) ?></option><?php endforeach; ?></select></div>
+            <?php foreach ($people as $person) : ?><option value="<?= (int) $person['id'] ?>"<?= $c['requester'] === (int) $person['id'] ? ' selected' : '' ?>><?= e($person['name']) ?></option><?php endforeach; ?></select></div>
         <div><label for="s-organization">Organization</label><select id="s-organization" name="organization"><option value="">Any</option>
-            <?php foreach ($organizations as $o): ?><option value="<?= (int) $o['id'] ?>"<?= $c['organization'] === (int) $o['id'] ? ' selected' : '' ?>><?= e($o['name']) ?></option><?php endforeach; ?></select></div>
+            <?php foreach ($organizations as $o) : ?><option value="<?= (int) $o['id'] ?>"<?= $c['organization'] === (int) $o['id'] ? ' selected' : '' ?>><?= e($o['name']) ?></option><?php endforeach; ?></select></div>
         <div><label for="s-assignee">Assigned to</label><select id="s-assignee" name="assignee"><option value="">Anyone</option>
             <option value="me"<?= $c['assignee'] === 'me' ? ' selected' : '' ?>>Me</option><option value="none"<?= $c['assignee'] === 'none' ? ' selected' : '' ?>>Unassigned</option>
-            <?php foreach ($technicians as $tech): ?><option value="<?= (int) $tech['id'] ?>"<?= $c['assignee'] === (int) $tech['id'] ? ' selected' : '' ?>><?= e($tech['name']) ?></option><?php endforeach; ?></select></div>
+            <?php foreach ($technicians as $tech) : ?><option value="<?= (int) $tech['id'] ?>"<?= $c['assignee'] === (int) $tech['id'] ? ' selected' : '' ?>><?= e($tech['name']) ?></option><?php endforeach; ?></select></div>
         <div><label for="s-sla">SLA</label><select id="s-sla" name="sla"><option value="">Any</option>
-            <?php foreach (['On track' => 'On track (open)', 'Overdue' => 'Overdue (open)', 'On time' => 'Met (resolved)', 'Late' => 'Missed (resolved)'] as $v => $label): ?><option value="<?= e($v) ?>"<?= $c['sla'] === $v ? ' selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></div>
+            <?php foreach (['On track' => 'On track (open)', 'Overdue' => 'Overdue (open)', 'On time' => 'Met (resolved)', 'Late' => 'Missed (resolved)'] as $v => $label) : ?><option value="<?= e($v) ?>"<?= $c['sla'] === $v ? ' selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></div>
         <?php endif; ?>
     </div>
     <fieldset class="check-group"><legend>Status</legend>
-        <?php foreach ($statuses as $s): ?><label class="checkbox-label"><input type="checkbox" name="status[]" value="<?= (int) $s['id'] ?>"<?= $checked($c['statuses'], (int) $s['id']) ?>> <?= e($s['name']) ?></label><?php endforeach; ?>
+        <?php foreach ($statuses as $s) : ?><label class="checkbox-label"><input type="checkbox" name="status[]" value="<?= (int) $s['id'] ?>"<?= $checked($c['statuses'], (int) $s['id']) ?>> <?= e($s['name']) ?></label><?php endforeach; ?>
     </fieldset>
     <fieldset class="check-group"><legend>Priority</legend>
-        <?php foreach ($priorities as $p): ?><label class="checkbox-label"><input type="checkbox" name="priority[]" value="<?= (int) $p['id'] ?>"<?= $checked($c['priorities'], (int) $p['id']) ?>> <?= e($p['name']) ?></label><?php endforeach; ?>
+        <?php foreach ($priorities as $p) : ?><label class="checkbox-label"><input type="checkbox" name="priority[]" value="<?= (int) $p['id'] ?>"<?= $checked($c['priorities'], (int) $p['id']) ?>> <?= e($p['name']) ?></label><?php endforeach; ?>
     </fieldset>
     <div class="search-grid dates">
-        <?php foreach ($dateFields as $key => [, $label]): [$from, $to] = $dates[$key]; ?>
+        <?php foreach ($dateFields as $key => [, $label]) : [$from, $to] = $dates[$key]; ?>
         <fieldset class="date-range"><legend><?= e($label) ?></legend>
             <input type="date" name="<?= $key ?>_from" value="<?= e($from?->format('Y-m-d') ?? '') ?>" aria-label="<?= e($label) ?> from">
             <span class="meta">to</span>

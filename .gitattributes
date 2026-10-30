@@ -1,2 +1,8 @@
 # Shell scripts run inside Linux containers and must keep LF line endings.
 *.sh text eol=lf
+# PSR-12 requires Unix (LF) line endings in PHP files; keep web and SQL files consistent too.
+*.php text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.sql text eol=lf
+*.xml text eol=lf

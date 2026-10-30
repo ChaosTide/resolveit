@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 // App Service Authentication must require Microsoft login before reaching PHP.
@@ -29,6 +30,8 @@ function azure_team_login(PDO $pdo, array $identity): void
         http_response_code(403);
         exit('Your team account is not active. Contact Jordan.');
     }
-    if (($_SESSION['user']['id'] ?? null) !== (int)$user['id']) session_regenerate_id(true);
-    $_SESSION['user'] = ['id'=>(int)$user['id'],'name'=>$user['name'],'email'=>$user['email'],'role'=>$user['role']];
+    if (($_SESSION['user']['id'] ?? null) !== (int)$user['id']) {
+        session_regenerate_id(true);
+    }
+    $_SESSION['user'] = ['id' => (int)$user['id'],'name' => $user['name'],'email' => $user['email'],'role' => $user['role']];
 }

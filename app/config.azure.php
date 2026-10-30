@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 // Settings for Azure and the local Docker stack come from environment variables.

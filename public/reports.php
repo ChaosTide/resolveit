@@ -18,7 +18,8 @@ if (is_string($export)) {
             'sla_hours' => 'SLA target (h)', 'due_at' => 'Due', 'sla_state' => 'SLA'];
         send_csv("cts4911-tickets-$from-to-$to.csv", $columns, ticket_export_rows($pdo, $from, $toExclusive));
     }
-    if (!isset($definitions[$export])) { http_response_code(404); exit('Unknown report.'); }
+    if (!isset($definitions[$export])) { http_response_code(404);
+        exit('Unknown report.'); }
     $report = run_report($pdo, $export, $from, $toExclusive);
     $suffix = $report['scope'] === 'range' ? "$from-to-$to" : 'current-' . date('Y-m-d');
     send_csv("cts4911-$export-$suffix.csv", $report['columns'], $report['rows']);
@@ -37,44 +38,8 @@ $presets = [
     'Last 90 days' => [date('Y-m-d', strtotime('-89 days')), date('Y-m-d')],
 ];
 
-function render_report(array $report): void
-{
-    $max = 1;
-    if ($report['bar']) {
-        foreach ($report['rows'] as $row) { $max = max($max, (int) $row[$report['bar']]); }
-    }
-    echo '<table><thead><tr>';
-    foreach ($report['columns'] as $key => $label) {
-        echo '<th' . (in_array($key, $report['num'], true) ? ' class="num"' : '') . '>' . e($label) . '</th>';
-    }
-    if ($report['bar']) echo '<th><span class="visually-hidden">Chart</span></th>';
-    echo '</tr></thead><tbody>';
-    foreach ($report['rows'] as $row) {
-        echo '<tr>';
-        foreach ($report['columns'] as $key => $label) {
-            $value = $row[$key] === null ? '' : (string) $row[$key];
-            $class = in_array($key, $report['num'], true) ? ' class="num"' : '';
-            if (($report['link'] ?? null) === $key) {
-                $value = '<a href="ticket.php?id=' . (int) $value . '">#' . (int) $value . '</a>';
-            } elseif ($key === 'sla_state') {
-                $value = '<span class="sla sla-' . strtolower(str_replace(' ', '-', $value)) . '">' . e($value) . '</span>';
-            } else {
-                $value = $value === '' ? '&ndash;' : e($value);
-            }
-            echo "<td$class>$value</td>";
-        }
-        if ($report['bar']) {
-            $width = round((int) $row[$report['bar']] / $max * 100);
-            echo '<td class="bar-cell"><span class="bar" style="width:' . $width . '%"></span></td>';
-        }
-        echo '</tr>';
-    }
-    if (!$report['rows']) {
-        echo '<tr><td colspan="' . (count($report['columns']) + ($report['bar'] ? 1 : 0)) . '">No data for this period.</td></tr>';
-    }
-    echo '</tbody></table>';
-}
-$pageTitle = 'Reports'; require __DIR__ . '/partials/header.php';
+$pageTitle = 'Reports';
+require __DIR__ . '/partials/header.php';
 ?>
 <div class="page-header"><div><h1>Reports</h1><p class="subtitle">Ticket volume, workload, and SLA performance. Every table exports to CSV.</p></div></div>
 <section class="card">
@@ -83,8 +48,8 @@ $pageTitle = 'Reports'; require __DIR__ . '/partials/header.php';
     <div><label for="to">To</label><input id="to" name="to" type="date" value="<?= e($to) ?>" required></div>
     <button type="submit">Apply</button>
 </form>
-<p class="presets"><?php foreach ($presets as $label => [$presetFrom, $presetTo]): ?><a href="reports.php?<?= e(http_build_query(['from' => $presetFrom, 'to' => $presetTo])) ?>"><?= e($label) ?></a><?php endforeach; ?></p>
-<?php if ($rangeNotice): ?><p class="errors"><?= e($rangeNotice) ?></p><?php endif; ?>
+<p class="presets"><?php foreach ($presets as $label => [$presetFrom, $presetTo]) : ?><a href="reports.php?<?= e(http_build_query(['from' => $presetFrom, 'to' => $presetTo])) ?>"><?= e($label) ?></a><?php endforeach; ?></p>
+<?php if ($rangeNotice) : ?><p class="errors"><?= e($rangeNotice) ?></p><?php endif; ?>
 <p class="meta">Showing tickets created <?= e($fromDate->format('M j, Y')) ?> &ndash; <?= e($toDate->format('M j, Y')) ?>. Reports marked <em>current</em> ignore the dates and show the backlog right now.
 <a class="button secondary" href="reports.php?<?= e($rangeQuery) ?>&amp;export=tickets">Export all tickets in range (CSV)</a></p>
 </section>
@@ -99,7 +64,9 @@ $pageTitle = 'Reports'; require __DIR__ . '/partials/header.php';
 </div>
 
 <div class="report-grid">
-<?php $number = 0; foreach ($reports as $key => $report): $number++; if ($key === 'sla') echo '</div>'; ?>
+<?php $number = 0;
+foreach ($reports as $key => $report) : $number++;
+    if ($key === 'sla') { echo '</div>';} ?>
 <section class="card" id="report-<?= $key ?>">
     <div class="report-head">
         <h2><?= $number ?>. <?= e($report['title']) ?><?= $report['scope'] === 'current' ? ' <span class="meta">(current)</span>' : '' ?></h2>

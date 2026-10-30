@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 // Ticket status workflow: Open -> Assigned -> In Progress -> Resolved -> Closed.

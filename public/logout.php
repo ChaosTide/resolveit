@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__ . '/../app/bootstrap.php';
 $_SESSION = [];
 if (ini_get('session.use_cookies')) {
@@ -6,5 +7,6 @@ if (ini_get('session.use_cookies')) {
     setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
 }
 session_destroy();
-if (getenv('APP_ENV') === 'azure') redirect('/.auth/logout');
+if (getenv('APP_ENV') === 'azure') { redirect('/.auth/logout');
+}
 redirect('login.php');

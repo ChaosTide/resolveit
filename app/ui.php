@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 // Display helpers shared by every page: badges, SLA countdowns, dates, icons, pagination.
@@ -25,8 +26,12 @@ function duration_text(int $seconds): string
     $days = intdiv($seconds, 86400);
     $hours = intdiv($seconds % 86400, 3600);
     $minutes = intdiv($seconds % 3600, 60);
-    if ($days > 0) return $days . 'd ' . $hours . 'h';
-    if ($hours > 0) return $hours . 'h ' . $minutes . 'm';
+    if ($days > 0) {
+        return $days . 'd ' . $hours . 'h';
+    }
+    if ($hours > 0) {
+        return $hours . 'h ' . $minutes . 'm';
+    }
     return max(1, $minutes) . 'm';
 }
 
@@ -44,16 +49,22 @@ function iso_time(?string $value): string
 function format_time(?string $value): string
 {
     $dt = to_datetime($value);
-    if (!$dt) return '';
+    if (!$dt) {
+        return '';
+    }
     return $dt->format($dt->format('Y') === date('Y') ? 'M j, g:i A' : 'M j, Y g:i A');
 }
 
 function time_ago(?string $value): string
 {
     $dt = to_datetime($value);
-    if (!$dt) return '';
+    if (!$dt) {
+        return '';
+    }
     $seconds = time() - $dt->getTimestamp();
-    if ($seconds < 60) return 'just now';
+    if ($seconds < 60) {
+        return 'just now';
+    }
     return duration_text($seconds) . ' ago';
 }
 
@@ -68,10 +79,16 @@ function relative_time(?string $value): string
  */
 function sla_badge(string $state, ?string $dueAt, int $slaHours): string
 {
-    if ($state === 'On time') return '<span class="sla sla-met" title="Resolved within ' . $slaHours . 'h target">Met</span>';
-    if ($state === 'Late') return '<span class="sla sla-missed" title="Resolved after the ' . $slaHours . 'h target">Missed</span>';
+    if ($state === 'On time') {
+        return '<span class="sla sla-met" title="Resolved within ' . $slaHours . 'h target">Met</span>';
+    }
+    if ($state === 'Late') {
+        return '<span class="sla sla-missed" title="Resolved after the ' . $slaHours . 'h target">Missed</span>';
+    }
     $due = to_datetime($dueAt);
-    if (!$due) return '';
+    if (!$due) {
+        return '';
+    }
     $remaining = $due->getTimestamp() - time();
     $class = $remaining < 0 ? 'sla-overdue' : ($remaining < $slaHours * 900 ? 'sla-due-soon' : 'sla-on-track');
     $text = $remaining < 0 ? 'Overdue ' . duration_text($remaining) : duration_text($remaining) . ' left';
@@ -87,7 +104,9 @@ function initials(string $name): string
 
 function avatar(?string $name): string
 {
-    if ($name === null) return '<span class="avatar avatar-empty" aria-hidden="true">–</span>';
+    if ($name === null) {
+        return '<span class="avatar avatar-empty" aria-hidden="true">–</span>';
+    }
     return '<span class="avatar" aria-hidden="true" style="--hue:' . (crc32($name) % 360) . '">' . e(initials($name)) . '</span>';
 }
 
@@ -124,7 +143,9 @@ function ticket_table(array $tickets, bool $staff, string $emptyText, bool $bulk
 {
     $th = function (string $label, ?string $key, string $class = '') use ($sort, $staff) {
         $attr = $class !== '' ? ' class="' . $class . '"' : '';
-        if (!$sort || $key === null || !isset(ticket_sort_options($staff)[$key])) return "<th$attr>" . e($label) . '</th>';
+        if (!$sort || $key === null || !isset(ticket_sort_options($staff)[$key])) {
+            return "<th$attr>" . e($label) . '</th>';
+        }
         $active = $sort['key'] === $key;
         $dir = $active ? ($sort['dir'] === 'asc' ? 'desc' : 'asc') : ticket_sort_options($staff)[$key][1];
         $href = '?' . http_build_query(['sort' => $key, 'dir' => $dir] + $sort['query']);
@@ -174,12 +195,66 @@ function organization_options(PDO $pdo, ?int $keepId = null): array
 /** Previous / next links that keep the current filters. */
 function pagination(int $page, int $pages, array $query): string
 {
-    if ($pages <= 1) return '';
+    if ($pages <= 1) {
+        return '';
+    }
     $link = function (int $target, string $label, bool $disabled) use ($query) {
-        if ($disabled) return '<span class="page-link disabled">' . $label . '</span>';
+        if ($disabled) {
+            return '<span class="page-link disabled">' . $label . '</span>';
+        }
         return '<a class="page-link" href="?' . e(http_build_query(['page' => $target] + $query)) . '">' . $label . '</a>';
     };
     return '<nav class="pagination" aria-label="Pages">' . $link($page - 1, '&larr; Previous', $page <= 1)
         . '<span class="page-info">Page ' . $page . ' of ' . $pages . '</span>'
         . $link($page + 1, 'Next &rarr;', $page >= $pages) . '</nav>';
+}
+
+/** Dashboard number tile linking to the matching ticket list. */
+function kpi_tile(string $label, int $value, string $iconName, string $tone, string $href, string $note): string
+{
+    return '<a class="card stat tone-' . $tone . '" href="' . e($href) . '"><span class="stat-icon">' . icon($iconName) . '</span>'
+        . '<span class="meta">' . e($label) . '</span><strong>' . $value . '</strong><span class="stat-note">' . e($note) . '</span></a>';
+}
+
+/** One report table from run_report() (app/reports.php), with optional bar column. */
+function render_report(array $report): void
+{
+    $max = 1;
+    if ($report['bar']) {
+        foreach ($report['rows'] as $row) {
+            $max = max($max, (int) $row[$report['bar']]);
+        }
+    }
+    echo '<table><thead><tr>';
+    foreach ($report['columns'] as $key => $label) {
+        echo '<th' . (in_array($key, $report['num'], true) ? ' class="num"' : '') . '>' . e($label) . '</th>';
+    }
+    if ($report['bar']) {
+        echo '<th><span class="visually-hidden">Chart</span></th>';
+    }
+    echo '</tr></thead><tbody>';
+    foreach ($report['rows'] as $row) {
+        echo '<tr>';
+        foreach ($report['columns'] as $key => $label) {
+            $value = $row[$key] === null ? '' : (string) $row[$key];
+            $class = in_array($key, $report['num'], true) ? ' class="num"' : '';
+            if (($report['link'] ?? null) === $key) {
+                $value = '<a href="ticket.php?id=' . (int) $value . '">#' . (int) $value . '</a>';
+            } elseif ($key === 'sla_state') {
+                $value = '<span class="sla sla-' . strtolower(str_replace(' ', '-', $value)) . '">' . e($value) . '</span>';
+            } else {
+                $value = $value === '' ? '&ndash;' : e($value);
+            }
+            echo "<td$class>$value</td>";
+        }
+        if ($report['bar']) {
+            $width = round((int) $row[$report['bar']] / $max * 100);
+            echo '<td class="bar-cell"><span class="bar" style="width:' . $width . '%"></span></td>';
+        }
+        echo '</tr>';
+    }
+    if (!$report['rows']) {
+        echo '<tr><td colspan="' . (count($report['columns']) + ($report['bar'] ? 1 : 0)) . '">No data for this period.</td></tr>';
+    }
+    echo '</tbody></table>';
 }

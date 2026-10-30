@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!--
+  Coding standard for ResolveIT: PSR-12, the PHP-FIG standard for PHP style.
+  Check:  php phpcs.phar          (run from the project folder; reads this file)
+  Fix:    php phpcbf.phar         (auto-fixes formatting)
+-->
+<ruleset name="ResolveIT">
+    <description>PSR-12 for the ResolveIT ticket system.</description>
+
+    <file>app</file>
+    <file>public</file>
+    <file>scripts</file>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+
+    <rule ref="PSR12"/>
+
+    <!--
+      Pages in public/ are HTML templates using PHP's alternative syntax on one line,
+      e.g. <?php if ($staff): ?> ... <?php endif; ?>. These two sniffs are written for
+      pure-PHP brace blocks and would split such lines apart, which hurts readability.
+      All other PSR-12 rules still apply to the pages.
+    -->
+    <rule ref="Squiz.ControlStructures.ControlSignature.NewlineAfterOpenBrace">
+        <exclude-pattern>public/*</exclude-pattern>
+    </rule>
+    <rule ref="Squiz.WhiteSpace.ScopeClosingBrace.ContentBefore">
+        <exclude-pattern>public/*</exclude-pattern>
+    </rule>
+
+    <!-- PSR-12 recommends lines of 120 characters or fewer (a soft limit, reported as a warning). -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120"/>
+            <property name="absoluteLineLimit" value="0"/>
+        </properties>
+    </rule>
+</ruleset>

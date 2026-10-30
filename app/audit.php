@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 // Records an administrator action in admin_audit_log (shown on settings.php?tab=audit).

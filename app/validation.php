@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 function clean_text(mixed $value): string
@@ -32,3 +33,9 @@ function validate_ticket_input(array $input): array
     return [$data, $errors];
 }
 
+/** User-facing message for a failed settings save: duplicate name, or a generic failure. */
+function unique_error(PDOException $ex, string $thing): string
+{
+    $article = in_array(strtolower($thing[0]), ['a', 'e', 'i', 'o', 'u'], true) ? 'An' : 'A';
+    return $ex->getCode() === '23000' ? "$article $thing with that name already exists." : "The $thing could not be saved.";
+}

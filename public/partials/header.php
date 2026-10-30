@@ -1,7 +1,9 @@
 <?php
 // Fragments loaded into the split-view pane (ticket.php?partial=1) render without the page layout.
-if (!empty($partialView)) return;
-$flashMessage = $_SESSION['flash'] ?? null; unset($_SESSION['flash']);
+if (!empty($partialView)) { return;
+}
+$flashMessage = $_SESSION['flash'] ?? null;
+unset($_SESSION['flash']);
 $currentPage = basename($_SERVER['SCRIPT_NAME'] ?? '');
 $currentUser = current_user();
 $navActive = fn (array $pages) => in_array($currentPage, $pages, true) ? ' aria-current="page"' : '';
@@ -15,11 +17,11 @@ $navActive = fn (array $pages) => in_array($currentPage, $pages, true) ? ' aria-
     <link rel="stylesheet" href="assets/style.css">
     <script src="assets/app.js" defer></script>
 </head>
-<?php if (!$currentUser): ?>
+<?php if (!$currentUser) : ?>
 <body class="auth-layout">
 <header class="auth-brand"><span class="logo" aria-hidden="true"><?= icon('tickets') ?></span> CTS Service Desk</header>
 <main class="auth-main">
-<?php else: ?>
+<?php else : ?>
 <body class="app-layout">
 <a class="skip-link" href="#content">Skip to content</a>
 <aside class="sidebar" id="sidebar">
@@ -29,7 +31,7 @@ $navActive = fn (array $pages) => in_array($currentPage, $pages, true) ? ' aria-
         <a href="tickets.php"<?= $navActive(['tickets.php', 'ticket.php', 'ticket-edit.php']) ?>><?= icon('tickets') ?><?= has_role('employee') ? 'My Tickets' : 'Tickets' ?></a>
         <a href="ticket-create.php"<?= $navActive(['ticket-create.php']) ?>><?= icon('plus') ?>New Ticket</a>
         <a href="kb.php"<?= $navActive(['kb.php', 'kb-article.php', 'kb-edit.php']) ?>><?= icon('book') ?>Knowledge Base</a>
-        <?php if (has_role('administrator')): ?>
+        <?php if (has_role('administrator')) : ?>
             <p class="nav-heading">Administration</p>
             <a href="users.php"<?= $navActive(['users.php', 'user-edit.php']) ?>><?= icon('users') ?>Manage Users</a>
             <a href="reports.php"<?= $navActive(['reports.php']) ?>><?= icon('chart') ?>Reports</a>
@@ -53,6 +55,6 @@ $navActive = fn (array $pages) => in_array($currentPage, $pages, true) ? ' aria-
     </header>
     <main class="content" id="content">
 <?php endif; ?>
-<?php if ($flashMessage): ?>
+<?php if ($flashMessage) : ?>
     <div class="alert <?= e($flashMessage['type']) ?>" role="status"><?= icon($flashMessage['type'] === 'success' ? 'check' : 'alert') ?><span><?= e($flashMessage['message']) ?></span></div>
 <?php endif; ?>

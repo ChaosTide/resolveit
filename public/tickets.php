@@ -14,7 +14,8 @@ $organizations = $staff ? $pdo->query('SELECT id, name FROM organizations ORDER 
 
 // Quick views (chips). Each maps to a WHERE fragment on the ticket row alias "q".
 $views = ['all' => 'All', 'open' => 'Open', 'waiting' => $staff ? 'Waiting on requester' : 'Awaiting my reply'];
-if ($staff) $views += ['mine' => 'My queue', 'unassigned' => 'Unassigned', 'overdue' => 'SLA overdue', 'pastdue' => 'Past due'];
+if ($staff) { $views += ['mine' => 'My queue', 'unassigned' => 'Unassigned', 'overdue' => 'SLA overdue', 'pastdue' => 'Past due'];
+}
 $views += ['resolved' => 'Resolved', 'closed' => 'Closed'];
 $viewSql = [
     'all' => ['1 = 1', []],
@@ -45,9 +46,11 @@ $split = ($_GET['layout'] ?? '') === 'split';
 $scopeWhere = $staff ? ['1 = 1'] : ['q.requester_id = ?'];
 $scopeParams = $staff ? [] : [$me];
 
-$where = $scopeWhere; $params = $scopeParams;
+$where = $scopeWhere;
+$params = $scopeParams;
 [$viewWhere, $viewParams] = $viewSql[$filters['view']];
-$where[] = $viewWhere; $params = array_merge($params, $viewParams);
+$where[] = $viewWhere;
+$params = array_merge($params, $viewParams);
 if ($filters['q'] !== '') {
     $like = like_pattern($filters['q']);
     $idSearch = ltrim($filters['q'], '#');
@@ -60,27 +63,31 @@ if ($filters['q'] !== '') {
     }
 }
 foreach (['status' => 'q.status_id', 'priority' => 'q.priority_id', 'category' => 'q.category_id', 'organization' => 'q.requester_organization_id'] as $key => $column) {
-    if ($filters[$key]) { $where[] = "$column = ?"; $params[] = $filters[$key]; }
+    if ($filters[$key]) { $where[] = "$column = ?";
+        $params[] = $filters[$key]; }
 }
-if ($filters['assignee'] === 'me') { $where[] = 'q.assigned_to = ?'; $params[] = $me; }
-elseif ($filters['assignee'] === 'none') { $where[] = 'q.assigned_to IS NULL'; }
-elseif ($filters['assignee']) { $where[] = 'q.assigned_to = ?'; $params[] = $filters['assignee']; }
+if ($filters['assignee'] === 'me') { $where[] = 'q.assigned_to = ?';
+    $params[] = $me;
+} elseif ($filters['assignee'] === 'none') { $where[] = 'q.assigned_to IS NULL';
+} elseif ($filters['assignee']) { $where[] = 'q.assigned_to = ?';
+    $params[] = $filters['assignee']; }
 
-$list = ticket_query_sql();
-$whereSql = implode(' AND ', $where);
+    $list = ticket_query_sql();
+    $whereSql = implode(' AND ', $where);
 
 // Automatic refresh: the page polls this and reloads the list only when something changed.
-if (($_GET['format'] ?? '') === 'stamp') send_stamp(ticket_stamp($pdo, $whereSql, $params));
+if (($_GET['format'] ?? '') === 'stamp') { send_stamp(ticket_stamp($pdo, $whereSql, $params));
+}
 
-$count = $pdo->prepare("SELECT COUNT(*) FROM ($list) q WHERE $whereSql");
-$count->execute($params);
-$total = (int) $count->fetchColumn();
-$pages = max(1, (int) ceil($total / $perPage));
-$page = min(max(1, (int) ($_GET['page'] ?? 1)), $pages);
-$offset = ($page - 1) * $perPage;
-$stmt = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY");
-$stmt->execute($params);
-$tickets = $stmt->fetchAll();
+    $count = $pdo->prepare("SELECT COUNT(*) FROM ($list) q WHERE $whereSql");
+    $count->execute($params);
+    $total = (int) $count->fetchColumn();
+    $pages = max(1, (int) ceil($total / $perPage));
+    $page = min(max(1, (int) ($_GET['page'] ?? 1)), $pages);
+    $offset = ($page - 1) * $perPage;
+    $stmt = $pdo->prepare("SELECT * FROM ($list) q WHERE $whereSql ORDER BY $orderBy OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY");
+    $stmt->execute($params);
+    $tickets = $stmt->fetchAll();
 
 // CSV export of everything matching the current filters (not just this page).
 if (($_GET['export'] ?? '') === 'csv') {
@@ -90,27 +97,31 @@ if (($_GET['export'] ?? '') === 'csv') {
 }
 
 // Counts for the quick-view chips (within the user's scope, ignoring other filters).
-$countSql = [];
-$countParams = [];
+    $countSql = [];
+    $countParams = [];
 foreach ($viewSql as $key => [$sql, $p]) {
-    if (!isset($views[$key])) continue;
+    if (!isset($views[$key])) { continue;
+    }
     $countSql[] = "SUM(CASE WHEN $sql THEN 1 ELSE 0 END) AS [$key]";
     $countParams = array_merge($countParams, $p);
 }
-$chips = $pdo->prepare('SELECT ' . implode(', ', $countSql) . " FROM ($list) q WHERE " . implode(' AND ', $scopeWhere));
-$chips->execute(array_merge($countParams, $scopeParams));
-$chipCounts = array_map('intval', $chips->fetch() ?: []);
+    $chips = $pdo->prepare('SELECT ' . implode(', ', $countSql) . " FROM ($list) q WHERE " . implode(' AND ', $scopeWhere));
+    $chips->execute(array_merge($countParams, $scopeParams));
+    $chipCounts = array_map('intval', $chips->fetch() ?: []);
 
 // Filters that links (sorting, paging, export, layout toggle) should keep.
-$filterQuery = array_filter(['view' => $filters['view'] === 'all' ? null : $filters['view'], 'q' => $filters['q'] ?: null,
-    'status' => $filters['status'], 'priority' => $filters['priority'], 'category' => $filters['category'],
-    'assignee' => $filters['assignee'], 'organization' => $filters['organization'], 'layout' => $split ? 'split' : null],
-    fn ($v) => $v !== null && $v !== '');
-$activeQuery = $filterQuery + ['sort' => $sort, 'dir' => $dir];
-$hasFilters = $filters['q'] !== '' || $filters['status'] || $filters['priority'] || $filters['category'] || $filters['assignee'] || $filters['organization'];
-$layoutToggle = ['layout' => $split ? null : 'split'] + $activeQuery;
-$pageTitle = $staff ? 'Tickets' : 'My Tickets'; require __DIR__ . '/partials/header.php';
-?>
+    $filterQuery = array_filter(
+        ['view' => $filters['view'] === 'all' ? null : $filters['view'], 'q' => $filters['q'] ?: null,
+        'status' => $filters['status'], 'priority' => $filters['priority'], 'category' => $filters['category'],
+        'assignee' => $filters['assignee'], 'organization' => $filters['organization'], 'layout' => $split ? 'split' : null],
+        fn ($v) => $v !== null && $v !== ''
+    );
+    $activeQuery = $filterQuery + ['sort' => $sort, 'dir' => $dir];
+    $hasFilters = $filters['q'] !== '' || $filters['status'] || $filters['priority'] || $filters['category'] || $filters['assignee'] || $filters['organization'];
+    $layoutToggle = ['layout' => $split ? null : 'split'] + $activeQuery;
+    $pageTitle = $staff ? 'Tickets' : 'My Tickets';
+    require __DIR__ . '/partials/header.php';
+    ?>
 <div class="page-header">
     <div>
         <h1><?= $staff ? 'All Tickets' : 'My Tickets' ?></h1>
@@ -124,45 +135,45 @@ $pageTitle = $staff ? 'Tickets' : 'My Tickets'; require __DIR__ . '/partials/hea
 </div>
 
 <nav class="quick-filters" aria-label="Quick views" id="live-chips" data-live-region>
-<?php foreach ($views as $key => $label): ?>
+<?php foreach ($views as $key => $label) : ?>
     <a class="chip" href="tickets.php?<?= e(http_build_query(array_filter(['view' => $key === 'all' ? null : $key, 'sort' => $sort, 'dir' => $dir, 'layout' => $split ? 'split' : null]))) ?>"<?= $filters['view'] === $key ? ' aria-current="true"' : '' ?>><?= e($label) ?> <span class="count"><?= $chipCounts[$key] ?? 0 ?></span></a>
 <?php endforeach; ?>
 </nav>
 
 <form class="card filters" method="get" action="tickets.php">
-    <?php if ($filters['view'] !== 'all'): ?><input type="hidden" name="view" value="<?= e($filters['view']) ?>"><?php endif; ?>
-    <?php if ($split): ?><input type="hidden" name="layout" value="split"><?php endif; ?>
+    <?php if ($filters['view'] !== 'all') : ?><input type="hidden" name="view" value="<?= e($filters['view']) ?>"><?php endif; ?>
+    <?php if ($split) : ?><input type="hidden" name="layout" value="split"><?php endif; ?>
     <input type="hidden" name="dir" value="<?= e($dir) ?>">
     <div class="filter wide"><label for="f-q">Search</label><input id="f-q" type="search" name="q" value="<?= e($filters['q']) ?>" placeholder="Ticket #, title, or description"></div>
     <div class="filter"><label for="f-status">Status</label><select id="f-status" name="status" data-autosubmit><option value="">Any status</option>
-        <?php foreach ($statuses as $s): ?><option value="<?= (int) $s['id'] ?>"<?= $filters['status'] === (int) $s['id'] ? ' selected' : '' ?>><?= e($s['name']) ?></option><?php endforeach; ?></select></div>
+        <?php foreach ($statuses as $s) : ?><option value="<?= (int) $s['id'] ?>"<?= $filters['status'] === (int) $s['id'] ? ' selected' : '' ?>><?= e($s['name']) ?></option><?php endforeach; ?></select></div>
     <div class="filter"><label for="f-priority">Priority</label><select id="f-priority" name="priority" data-autosubmit><option value="">Any priority</option>
-        <?php foreach ($priorities as $p): ?><option value="<?= (int) $p['id'] ?>"<?= $filters['priority'] === (int) $p['id'] ? ' selected' : '' ?>><?= e($p['name']) ?></option><?php endforeach; ?></select></div>
+        <?php foreach ($priorities as $p) : ?><option value="<?= (int) $p['id'] ?>"<?= $filters['priority'] === (int) $p['id'] ? ' selected' : '' ?>><?= e($p['name']) ?></option><?php endforeach; ?></select></div>
     <div class="filter"><label for="f-category">Category</label><select id="f-category" name="category" data-autosubmit><option value="">Any category</option>
-        <?php foreach ($categories as $c): ?><option value="<?= (int) $c['id'] ?>"<?= $filters['category'] === (int) $c['id'] ? ' selected' : '' ?>><?= e($c['name']) ?></option><?php endforeach; ?></select></div>
-    <?php if ($staff): ?>
+        <?php foreach ($categories as $c) : ?><option value="<?= (int) $c['id'] ?>"<?= $filters['category'] === (int) $c['id'] ? ' selected' : '' ?>><?= e($c['name']) ?></option><?php endforeach; ?></select></div>
+    <?php if ($staff) : ?>
     <div class="filter"><label for="f-assignee">Assigned to</label><select id="f-assignee" name="assignee" data-autosubmit><option value="">Anyone</option>
         <option value="me"<?= $filters['assignee'] === 'me' ? ' selected' : '' ?>>Me</option>
         <option value="none"<?= $filters['assignee'] === 'none' ? ' selected' : '' ?>>Unassigned</option>
-        <?php foreach ($technicians as $tech): ?><option value="<?= (int) $tech['id'] ?>"<?= $filters['assignee'] === (int) $tech['id'] ? ' selected' : '' ?>><?= e($tech['name']) ?></option><?php endforeach; ?></select></div>
+        <?php foreach ($technicians as $tech) : ?><option value="<?= (int) $tech['id'] ?>"<?= $filters['assignee'] === (int) $tech['id'] ? ' selected' : '' ?>><?= e($tech['name']) ?></option><?php endforeach; ?></select></div>
     <div class="filter"><label for="f-organization">Organization</label><select id="f-organization" name="organization" data-autosubmit><option value="">Any organization</option>
-        <?php foreach ($organizations as $o): ?><option value="<?= (int) $o['id'] ?>"<?= $filters['organization'] === (int) $o['id'] ? ' selected' : '' ?>><?= e($o['name']) ?></option><?php endforeach; ?></select></div>
+        <?php foreach ($organizations as $o) : ?><option value="<?= (int) $o['id'] ?>"<?= $filters['organization'] === (int) $o['id'] ? ' selected' : '' ?>><?= e($o['name']) ?></option><?php endforeach; ?></select></div>
     <?php endif; ?>
     <div class="filter"><label for="f-sort">Sort</label><select id="f-sort" name="sort" data-autosubmit data-reset-dir>
-        <?php foreach (ticket_sort_options($staff) as $key => [$label]): if ($label === null && $sort !== $key) continue; ?><option value="<?= $key ?>"<?= $sort === $key ? ' selected' : '' ?>><?= e($label ?? ucfirst($key)) ?></option><?php endforeach; ?></select></div>
+        <?php foreach (ticket_sort_options($staff) as $key => [$label]) : if ($label === null && $sort !== $key) { continue;} ?><option value="<?= $key ?>"<?= $sort === $key ? ' selected' : '' ?>><?= e($label ?? ucfirst($key)) ?></option><?php endforeach; ?></select></div>
     <button type="submit"><?= icon('search') ?>Apply</button>
-    <?php if ($hasFilters): ?><a class="button secondary" href="tickets.php?<?= e(http_build_query(array_filter(['view' => $filters['view'] === 'all' ? null : $filters['view'], 'layout' => $split ? 'split' : null]))) ?>">Clear</a><?php endif; ?>
+    <?php if ($hasFilters) : ?><a class="button secondary" href="tickets.php?<?= e(http_build_query(array_filter(['view' => $filters['view'] === 'all' ? null : $filters['view'], 'layout' => $split ? 'split' : null]))) ?>">Clear</a><?php endif; ?>
 </form>
 
-<?php if ($staff): ?>
+<?php if ($staff) : ?>
 <form id="bulk-form" class="card bulk-bar" method="post" action="tickets-bulk.php" data-bulk-form>
     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
     <input type="hidden" name="return" value="<?= e(http_build_query($activeQuery)) ?>">
     <strong class="bulk-count" data-bulk-count>Bulk update</strong>
     <select name="assigned_to" aria-label="Assign selected tickets to"><option value="">Assign to… (no change)</option><option value="none">Unassigned</option>
-        <?php foreach ($technicians as $tech): ?><option value="<?= (int) $tech['id'] ?>"><?= e($tech['name']) ?></option><?php endforeach; ?></select>
+        <?php foreach ($technicians as $tech) : ?><option value="<?= (int) $tech['id'] ?>"><?= e($tech['name']) ?></option><?php endforeach; ?></select>
     <select name="priority_id" aria-label="Set priority of selected tickets"><option value="">Priority… (no change)</option>
-        <?php foreach ($priorities as $p): ?><option value="<?= (int) $p['id'] ?>"><?= e($p['name']) ?></option><?php endforeach; ?></select>
+        <?php foreach ($priorities as $p) : ?><option value="<?= (int) $p['id'] ?>"><?= e($p['name']) ?></option><?php endforeach; ?></select>
     <button type="submit" class="small">Apply to selected</button>
     <span class="meta">Status changes stay one ticket at a time so the workflow is enforced.</span>
 </form>
@@ -184,7 +195,7 @@ $pageTitle = $staff ? 'Tickets' : 'My Tickets'; require __DIR__ . '/partials/hea
             <?= pagination($page, $pages, $activeQuery) ?>
         </div>
     </div>
-    <?php if ($split): ?>
+    <?php if ($split) : ?>
     <aside class="split-pane card" id="split-pane" aria-live="polite" data-split-pane>
         <div class="empty-state"><?= icon('tickets') ?><p>Select a ticket to see it here.</p></div>
     </aside>

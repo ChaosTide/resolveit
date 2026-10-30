@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 // Shared by the ticket list (tickets.php) and advanced search (search.php):
@@ -26,7 +27,9 @@ function ticket_sort_options(bool $staff): array
         'status' => [null, 'asc'],
         'assignee' => [null, 'asc'],
     ];
-    if (!$staff) unset($sorts['due'], $sorts['requester']);
+    if (!$staff) {
+        unset($sorts['due'], $sorts['requester']);
+    }
     return $sorts;
 }
 
@@ -86,7 +89,9 @@ function ticket_csv_columns(bool $staff): array
     $columns = ['id' => 'ID', 'title' => 'Summary', 'requester' => 'Requester', 'requester_organization' => 'Organization',
         'assignee' => 'Assignee', 'priority' => 'Priority', 'category' => 'Category', 'status' => 'Status', 'waiting' => 'Waiting on requester',
         'created_at' => 'Created', 'updated_at' => 'Updated', 'due_date' => 'Due date', 'response_time' => 'Response time', 'close_time' => 'Close time'];
-    if ($staff) $columns += ['sla_state' => 'SLA', 'due_at' => 'SLA due'];
+    if ($staff) {
+        $columns += ['sla_state' => 'SLA', 'due_at' => 'SLA due'];
+    }
     return $columns;
 }
 
@@ -108,7 +113,9 @@ function like_pattern(string $term): string
 /** Parses a YYYY-MM-DD query value; null when missing or invalid. */
 function query_date(mixed $value): ?DateTimeImmutable
 {
-    if (!is_string($value) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) return null;
+    if (!is_string($value) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        return null;
+    }
     $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
     return $date && $date->format('Y-m-d') === $value ? $date : null;
 }

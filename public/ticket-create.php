@@ -36,7 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('ticket.php?id=' . $ticketId);
     }
 }
-$pageTitle = 'Create Ticket'; require __DIR__ . '/partials/header.php';
+$pageTitle = 'Create Ticket';
+require __DIR__ . '/partials/header.php';
 ?>
 <div class="page-header">
     <div>
@@ -46,12 +47,12 @@ $pageTitle = 'Create Ticket'; require __DIR__ . '/partials/header.php';
 </div>
 <div class="two-col">
 <section class="card">
-<?php foreach ($errors as $error): ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
+<?php foreach ($errors as $error) : ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
 <form method="post">
     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
     <label for="title">Short title</label><input id="title" name="title" maxlength="150" value="<?= e($data['title']) ?>" placeholder="e.g. Laptop will not connect to campus Wi-Fi" required>
     <label for="category">Category</label><select id="category" name="category_id" required><option value="">Choose one</option>
-        <?php foreach ($categories as $category): ?><option value="<?= (int) $category['id'] ?>" <?= (int) $data['category_id'] === (int) $category['id'] ? 'selected' : '' ?>><?= e($category['name']) ?></option><?php endforeach; ?>
+        <?php foreach ($categories as $category) : ?><option value="<?= (int) $category['id'] ?>" <?= (int) $data['category_id'] === (int) $category['id'] ? 'selected' : '' ?>><?= e($category['name']) ?></option><?php endforeach; ?>
     </select>
     <label for="description">Problem description</label><textarea id="description" name="description" maxlength="5000" minlength="10" placeholder="What happened, when it started, and any error messages you saw." required><?= e($data['description']) ?></textarea>
     <p class="field-hint">At least 10 characters.</p>

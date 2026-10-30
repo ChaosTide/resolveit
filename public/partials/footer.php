@@ -1,8 +1,8 @@
-<?php if (!empty($partialView)) return; ?>
-<?php if (current_user()): ?>
+<?php if (!empty($partialView)) { return;} ?>
+<?php if (current_user()) : ?>
     </main>
 </div>
-<?php else: ?>
+<?php else : ?>
 </main>
 <footer class="auth-footer">Classroom prototype for CTS 4911</footer>
 <?php endif; ?>

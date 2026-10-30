@@ -43,12 +43,8 @@ if ($staff) {
     $recent = $recent->fetchAll();
 }
 
-function kpi_tile(string $label, int $value, string $iconName, string $tone, string $href, string $note): string
-{
-    return '<a class="card stat tone-' . $tone . '" href="' . e($href) . '"><span class="stat-icon">' . icon($iconName) . '</span>'
-        . '<span class="meta">' . e($label) . '</span><strong>' . $value . '</strong><span class="stat-note">' . e($note) . '</span></a>';
-}
-$pageTitle = 'Dashboard'; require __DIR__ . '/partials/header.php';
+$pageTitle = 'Dashboard';
+require __DIR__ . '/partials/header.php';
 $firstName = explode(' ', current_user()['name'])[0];
 ?>
 <div class="page-header">
@@ -59,7 +55,7 @@ $firstName = explode(' ', current_user()['name'])[0];
     <div class="page-actions"><a class="button" href="ticket-create.php"><?= icon('plus') ?>New Ticket</a></div>
 </div>
 
-<?php if ($staff): ?>
+<?php if ($staff) : ?>
 <div class="grid">
     <?= kpi_tile('Open tickets', $kpi['unresolved'], 'inbox', 'primary', 'tickets.php?view=open', 'Not yet resolved') ?>
     <?= kpi_tile('Unassigned', $kpi['unassigned'], 'user', 'violet', 'tickets.php?view=unassigned', 'Waiting for a technician') ?>
@@ -82,16 +78,16 @@ $firstName = explode(' ', current_user()['name'])[0];
 </section>
 <section class="card">
         <h2>Recent activity</h2>
-        <?php if (!$activity): ?><p class="meta">No ticket activity yet.</p><?php endif; ?>
+        <?php if (!$activity) : ?><p class="meta">No ticket activity yet.</p><?php endif; ?>
         <ul class="timeline">
-        <?php foreach ($activity as $item): ?>
+        <?php foreach ($activity as $item) : ?>
             <li><strong><?= e($item['actor']) ?></strong> <?= e($item['action']) ?><?= $item['new_value'] ? ' &rarr; ' . e($item['new_value']) : '' ?>
                 on <a href="ticket.php?id=<?= (int) $item['ticket_id'] ?>">#<?= (int) $item['ticket_id'] ?></a>
                 <div class="when"><?= relative_time($item['created_at']) ?> &middot; <?= e(mb_strimwidth($item['title'], 0, 40, '…')) ?></div></li>
         <?php endforeach; ?>
         </ul>
 </section>
-<?php else: ?>
+<?php else : ?>
 <div class="grid">
     <?= kpi_tile('Open requests', $kpi['open_count'], 'inbox', 'primary', 'tickets.php?view=open', 'Being worked on') ?>
     <?= kpi_tile('Resolved', $kpi['resolved'], 'check', 'success', 'tickets.php?view=resolved', 'Fixed, waiting to close') ?>

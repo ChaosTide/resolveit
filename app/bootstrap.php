@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 $azureIdentity = null;
@@ -19,6 +20,7 @@ if (!is_file($configFile)) {
 }
 
 $config = require $configFile;
+require_once __DIR__ . '/http.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/validation.php';
 require_once __DIR__ . '/auth.php';
@@ -46,39 +48,8 @@ if (isset($_SESSION['last_activity']) && time() - (int) $_SESSION['last_activity
 $_SESSION['last_activity'] = time();
 
 $pdo = db($config['db']);
-if ($azureIdentity !== null) azure_team_login($pdo, $azureIdentity);
-else refresh_session_user($pdo);
-
-function e(?string $value): string
-{
-    return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-}
-
-function redirect(string $path): never
-{
-    header('Location: ' . $path);
-    exit;
-}
-
-function flash(string $type, string $message): void
-{
-    $_SESSION['flash'] = ['type' => $type, 'message' => $message];
-}
-
-function csrf_token(): string
-{
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION['csrf_token'];
-}
-
-function verify_csrf(): void
-{
-    $token = $_POST['csrf_token'] ?? '';
-    if (!is_string($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
-        // 403 rather than the non-standard 419, which Apache turns into a 500 error.
-        http_response_code(403);
-        exit('The form expired or was invalid. Go back, refresh, and try again.');
-    }
+if ($azureIdentity !== null) {
+    azure_team_login($pdo, $azureIdentity);
+} else {
+    refresh_session_user($pdo);
 }
