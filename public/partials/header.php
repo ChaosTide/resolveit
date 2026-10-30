@@ -15,7 +15,7 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= e($pageTitle ?? 'Service Desk') ?> · ResolveIT</title>
+    <title><?= e($pageTitle ?? 'ResolveIT') ?> · ResolveIT</title>
     <link rel="stylesheet" href="assets/style.css">
     <script src="assets/app.js" defer></script>
 </head>
