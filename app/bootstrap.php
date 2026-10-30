@@ -7,7 +7,10 @@ if (getenv('APP_ENV') === 'azure') {
     $azureIdentity = azure_team_identity();
 }
 
-$configFile = getenv('APP_ENV') === 'azure'
+// azure:  App Service, Microsoft sign-in, settings from environment variables.
+// docker: local Docker Compose stack (deploy/docker), normal password sign-in, settings from environment variables.
+// (unset): this PC, settings from app/config.php.
+$configFile = in_array(getenv('APP_ENV'), ['azure', 'docker'], true)
     ? __DIR__ . '/config.azure.php'
     : __DIR__ . '/config.php';
 if (!is_file($configFile)) {

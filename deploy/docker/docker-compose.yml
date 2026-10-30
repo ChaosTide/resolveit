@@ -1,0 +1,50 @@
+# Local Docker stack: the ResolveIT site (Apache + PHP) and Microsoft SQL Server 2022.
+# Start:  powershell -ExecutionPolicy Bypass -File deploy\docker\start-docker.ps1
+# Site:   http://127.0.0.1:8081  (only reachable from this PC)
+# Secrets come from deploy/docker/.env, which start-docker.ps1 generates and git ignores.
+name: resolveit
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"            # Microsoft SQL Server license, accepted by the project owner
+      MSSQL_PID: Developer        # free edition for development and testing
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?run start-docker.ps1 to create deploy/docker/.env}
+    volumes:
+      - sqldata:/var/opt/mssql    # keeps the database between restarts
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+    restart: unless-stopped
+    # No ports published: only the web container can reach the database.
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: resolveit-web:local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: docker
+      DB_SERVER: db
+      DB_NAME: TicketManagement
+      DB_USER: resolveit_app
+      DB_PASSWORD: ${APP_DB_PASSWORD:?missing}
+      DB_TRUST_SERVER_CERTIFICATE: "true"
+      DB_ADMIN_USER: sa                       # used only by scripts/docker-init.php at startup
+      DB_ADMIN_PASSWORD: ${SA_PASSWORD:?missing}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?missing}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?missing}
+      ADMIN_NAME: Docker Admin
+    ports:
+      - "127.0.0.1:8081:80"
+    restart: unless-stopped
+
+volumes:
+  sqldata:

@@ -1,5 +1,7 @@
 .git
 LOCAL_LOGIN.txt
+deploy/docker/.env
+deploy/docker/DOCKER_LOGIN.txt
 app/config.php
 runtime/
 tests/

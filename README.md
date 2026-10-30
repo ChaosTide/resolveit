@@ -78,6 +78,20 @@ The link only works while this PC is on and both windows are open, and it change
 
 For an always-on server, `deploy/docker` builds the same site as an Apache container for Azure App Service.
 
+### Running the whole system in Docker
+
+`deploy/docker/docker-compose.yml` runs two containers: the ResolveIT site (Apache + PHP 8.3, `APP_ENV=docker`) and Microsoft SQL Server 2022 Developer Edition. It is separate from the Windows install above and has its own database.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\docker\start-docker.ps1         # start (first run downloads ~1.6 GB)
+powershell -ExecutionPolicy Bypass -File deploy\docker\start-docker.ps1 -Stop   # stop; the database is kept
+```
+
+- Site: `http://127.0.0.1:8081` (this PC only). The SQL Server container publishes no port, so only the web container can reach it.
+- First run creates `deploy\docker\.env` with random passwords and writes the admin sign-in to `deploy\docker\DOCKER_LOGIN.txt`; both are git-ignored.
+- On every start `scripts/docker-init.php` creates the database and a least-privilege `resolveit_app` login (the site never uses the SQL `sa` account), applies the schema and upgrades, and creates the admin if missing.
+- Logs: `docker compose -f deploy\docker\docker-compose.yml logs web`. To wipe the Docker database and start fresh, add `-v` to `docker compose ... down`.
+
 ## 4. Learning path for Jordan
 
 1. Read `database/schema.sql`: identify primary keys, foreign keys, and fixed reference tables.
