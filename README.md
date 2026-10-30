@@ -1,4 +1,4 @@
-# CTS 4911 IT Ticket Management System
+# ResolveIT – IT Ticket Management System (CTS 4911)
 
 This beginner-friendly PHP/Microsoft SQL Server prototype implements the capstone workflow described in the project source document. SQL Server is used because Jordan requested the local SSMS installation for hands-on testing.
 

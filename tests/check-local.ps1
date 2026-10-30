@@ -67,7 +67,7 @@ $password=[guid]::NewGuid().ToString()+'!Aa9'
 $accounts=@{}
 $p=Request $admin 'settings.php?tab=organizations'
 $r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='org_add';name="QA Org $tag"}
-$orgId=[regex]::Match($r.Content,"name=`"id`" value=`"(\d+)`"><input name=`"name`" maxlength=`"100`" value=`"QA Org $tag`"").Groups[1].Value
+$orgId=[regex]::Match($r.Content,"name=`"id`" value=`"(\d+)`">\s*<input name=`"name`" maxlength=`"100`" value=`"QA Org $tag`"").Groups[1].Value
 Check 'Add organization' ($orgId -ne '')
 $r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='org_add';name="QA Org $tag"}
 Check 'Duplicate organization rejected' ($r.Content.Contains('An organization with that name already exists'))
@@ -238,21 +238,21 @@ $p=Request $admin 'settings.php'
 $r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='category_add';name=$category}
 Check 'Add category' ($r.Content.Contains($category))
 Check 'New category offered on ticket form' ((Request $employee 'ticket-create.php').Content.Contains($category))
-$categoryId=[regex]::Match($r.Content,"name=`"id`" value=`"(\d+)`"><input name=`"name`" maxlength=`"80`" value=`"$category`"").Groups[1].Value
+$categoryId=[regex]::Match($r.Content,"name=`"id`" value=`"(\d+)`">\s*<input name=`"name`" maxlength=`"80`" value=`"$category`"").Groups[1].Value
 $r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='category_add';name=$category}
 Check 'Duplicate category rejected' ($r.Content.Contains('already exists'))
 $r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='category_toggle';id=$categoryId}
 Check 'Deactivated category hidden from ticket form' ($categoryId -ne '' -and -not (Request $employee 'ticket-create.php').Content.Contains($category))
 $p=Request $admin 'settings.php?tab=priorities'
-$lowMatch=[regex]::Match($p.Content,'name="id" value="(\d+)"><input name="name" maxlength="20" value="Low"[^>]*><input name="sla_hours"[^>]*value="(\d+)"')
+$lowMatch=[regex]::Match($p.Content,'name="id" value="(\d+)">\s*<input name="name" maxlength="20" value="Low"[^>]*>\s*<input name="sla_hours"[^>]*value="(\d+)"')
 $lowId=$lowMatch.Groups[1].Value; $lowSla=$lowMatch.Groups[2].Value
 $null=Request $admin 'settings.php' @{csrf_token=(Token $p);action='priority_update';id=$lowId;name="Low QA";sla_hours=48}
 $r=Request $admin 'settings.php?tab=priorities'
-Check 'Rename priority and change SLA target' ($r.Content.Contains('value="Low QA"') -and [regex]::IsMatch($r.Content,'value="Low QA"[^>]*><input name="sla_hours"[^>]*value="48"'))
+Check 'Rename priority and change SLA target' ($r.Content.Contains('value="Low QA"') -and [regex]::IsMatch($r.Content,'value="Low QA"[^>]*>\s*<input name="sla_hours"[^>]*value="48"'))
 $r=Request $admin 'settings.php' @{csrf_token=(Token $p);action='priority_update';id=$lowId;name='Low QA';sla_hours=0}
 Check 'Invalid SLA target rejected' ($r.Content.Contains('SLA target must be a whole number'))
 $null=Request $admin 'settings.php' @{csrf_token=(Token $p);action='priority_update';id=$lowId;name='Low';sla_hours=$lowSla}
-Check 'Priority name and SLA restored' ([regex]::IsMatch((Request $admin 'settings.php?tab=priorities').Content,"value=`"Low`"[^>]*><input name=`"sla_hours`"[^>]*value=`"$lowSla`""))
+Check 'Priority name and SLA restored' ([regex]::IsMatch((Request $admin 'settings.php?tab=priorities').Content,"value=`"Low`"[^>]*>\s*<input name=`"sla_hours`"[^>]*value=`"$lowSla`""))
 Check 'Statuses tab shows workflow' ((Request $admin 'settings.php?tab=statuses').Content.Contains('Assigned'))
 $r=Request $admin 'settings.php?tab=audit'
 Check 'Audit log records admin actions' ($r.Content.Contains('user created') -and $r.Content.Contains('user edited') -and $r.Content.Contains('category added') -and $r.Content.Contains('priority renamed') -and $r.Content.Contains('priority SLA changed'))
@@ -331,7 +331,7 @@ $r=Request $admin ('search.php?q=' + [uri]::EscapeDataString("Technician reply $
 Check 'Advanced search skips notes unless asked' (-not $r.Content.Contains("id=$id`">#$id</a>"))
 $r=Request $admin ('search.php?in_notes=1&q=' + [uri]::EscapeDataString("Technician reply $tag"))
 Check 'Advanced search finds text in replies' ($r.Content.Contains("id=$id`">#$id</a>") -and $r.Content.Contains('1 ticket match'))
-$closedId=[regex]::Match($r.Content,'name="status\[\]" value="(\d+)"> Closed').Groups[1].Value
+$closedId=[regex]::Match($r.Content,'name="status\[\]" value="(\d+)"\s*> Closed').Groups[1].Value
 $r=Request $admin ("search.php?status%5B%5D=$closedId&organization=$orgId")
 Check 'Search by status and organization' ($r.Content.Contains("id=$id`">#$id</a>") -and -not $r.Content.Contains("id=$other`">#$other</a>"))
 $today=Get-Date -Format yyyy-MM-dd

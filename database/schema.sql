@@ -1,4 +1,4 @@
--- CTS 4911 Ticket Management System for Microsoft SQL Server 2019+
+-- ResolveIT ticket management system (CTS 4911) for Microsoft SQL Server 2019+
 -- Run while connected to WORKSTATION\JLB282 with Windows Authentication.
 USE master;
 GO

@@ -13,10 +13,12 @@ const SLA_STATE_SQL = "CASE WHEN t.resolved_at IS NOT NULL
 /** Ticket rows joined with priority/status names, SLA due time, and SLA state. */
 function ticket_sla_base(): string
 {
-    return 'SELECT t.id, t.title, t.requester_id, t.assigned_to, t.category_id, t.created_at, t.updated_at, t.resolved_at, t.closed_at,
-        t.due_date, t.first_response_at, DATEDIFF(minute, t.created_at, t.first_response_at) AS response_minutes,
+    return 'SELECT t.id, t.title, t.requester_id, t.assigned_to, t.category_id,
+        t.created_at, t.updated_at, t.resolved_at, t.closed_at, t.due_date, t.first_response_at,
+        DATEDIFF(minute, t.created_at, t.first_response_at) AS response_minutes,
         DATEDIFF(minute, t.created_at, t.closed_at) AS close_minutes,
-        p.name AS priority, p.sort_order AS priority_order, p.sla_hours, s.name AS status, s.sort_order AS status_order,
+        p.name AS priority, p.sort_order AS priority_order, p.sla_hours,
+        s.name AS status, s.sort_order AS status_order,
         DATEADD(hour, p.sla_hours, t.created_at) AS due_at, ' . SLA_STATE_SQL . ' AS sla_state
         FROM tickets t JOIN priorities p ON p.id = t.priority_id JOIN statuses s ON s.id = t.status_id';
 }
@@ -28,7 +30,8 @@ function ticket_sla_base(): string
  */
 function ticket_list_sql(): string
 {
-    return "SELECT x.*, r.name AS requester, r.organization_id AS requester_organization_id, org.name AS requester_organization, a.name AS assignee, c.name AS category,
+    return "SELECT x.*, r.name AS requester, r.organization_id AS requester_organization_id,
+        org.name AS requester_organization, a.name AS assignee, c.name AS category,
         CASE WHEN last_note.role IS NOT NULL AND last_note.role <> 'employee' THEN 1 ELSE 0 END AS waiting,
         CASE WHEN x.due_date < CAST(SYSDATETIME() AS DATE) AND x.resolved_at IS NULL THEN 1 ELSE 0 END AS past_due
         FROM (" . ticket_sla_base() . ") x
@@ -36,14 +39,16 @@ function ticket_list_sql(): string
         LEFT JOIN organizations org ON org.id = r.organization_id
         LEFT JOIN users a ON a.id = x.assigned_to
         JOIN categories c ON c.id = x.category_id
-        OUTER APPLY (SELECT TOP 1 ro.name AS role FROM ticket_notes n JOIN users nu ON nu.id = n.author_id
-            JOIN roles ro ON ro.id = nu.role_id WHERE n.ticket_id = x.id ORDER BY n.created_at DESC, n.id DESC) last_note";
+        OUTER APPLY (SELECT TOP 1 ro.name AS role FROM ticket_notes n
+            JOIN users nu ON nu.id = n.author_id JOIN roles ro ON ro.id = nu.role_id
+            WHERE n.ticket_id = x.id ORDER BY n.created_at DESC, n.id DESC) last_note";
 }
 
 /** Marks the first time IT staff acted on a ticket (Response Time). No-op after the first time. */
 function record_first_response(PDO $pdo, int $ticketId): void
 {
-    $pdo->prepare('UPDATE tickets SET first_response_at = SYSDATETIME() WHERE id = ? AND first_response_at IS NULL')->execute([$ticketId]);
+    $pdo->prepare('UPDATE tickets SET first_response_at = SYSDATETIME() WHERE id = ? AND first_response_at IS NULL')
+        ->execute([$ticketId]);
 }
 
 /**
@@ -76,16 +81,18 @@ function resolved_sort_order(PDO $pdo): int
 function report_summary(PDO $pdo, string $from, string $toExclusive): array
 {
     $resolved = resolved_sort_order($pdo);
-    $stmt = $pdo->prepare('SELECT
-        SUM(CASE WHEN x.created_at >= ? AND x.created_at < ? THEN 1 ELSE 0 END) AS created,
-        SUM(CASE WHEN x.created_at >= ? AND x.created_at < ? AND x.resolved_at IS NOT NULL THEN 1 ELSE 0 END) AS resolved,
-        SUM(CASE WHEN x.created_at >= ? AND x.created_at < ? AND x.sla_state = \'On time\' THEN 1 ELSE 0 END) AS on_time,
-        SUM(CASE WHEN x.created_at >= ? AND x.created_at < ? AND x.sla_state IN (\'Late\', \'Overdue\') THEN 1 ELSE 0 END) AS missed,
+    $inRange = 'x.created_at >= ? AND x.created_at < ?';
+    $stmt = $pdo->prepare("SELECT
+        SUM(CASE WHEN $inRange THEN 1 ELSE 0 END) AS created,
+        SUM(CASE WHEN $inRange AND x.resolved_at IS NOT NULL THEN 1 ELSE 0 END) AS resolved,
+        SUM(CASE WHEN $inRange AND x.sla_state = 'On time' THEN 1 ELSE 0 END) AS on_time,
+        SUM(CASE WHEN $inRange AND x.sla_state IN ('Late', 'Overdue') THEN 1 ELSE 0 END) AS missed,
         SUM(CASE WHEN x.status_order < ? THEN 1 ELSE 0 END) AS unresolved,
-        SUM(CASE WHEN x.status_order < ? AND x.sla_state = \'Overdue\' THEN 1 ELSE 0 END) AS overdue,
+        SUM(CASE WHEN x.status_order < ? AND x.sla_state = 'Overdue' THEN 1 ELSE 0 END) AS overdue,
         SUM(CASE WHEN x.status_order < ? AND x.assigned_to IS NULL THEN 1 ELSE 0 END) AS unassigned
-        FROM (' . ticket_sla_base() . ') x');
-    $stmt->execute([$from, $toExclusive, $from, $toExclusive, $from, $toExclusive, $from, $toExclusive, $resolved, $resolved, $resolved]);
+        FROM (" . ticket_sla_base() . ') x');
+    $range = [$from, $toExclusive];
+    $stmt->execute([...$range, ...$range, ...$range, ...$range, $resolved, $resolved, $resolved]);
     $row = array_map('intval', $stmt->fetch());
     $decided = $row['on_time'] + $row['missed'];
     $row['compliance'] = $decided ? round($row['on_time'] / $decided * 100) : null;
@@ -110,30 +117,54 @@ function report_definitions(): array
     ];
 }
 
+/** A finished report: its definition plus columns, rows, and the display hints render_report() reads. */
+function report_result(
+    string $key,
+    array $columns,
+    array $rows,
+    array $num,
+    ?string $bar = null,
+    ?string $link = null
+): array {
+    $report = report_definitions()[$key] + ['columns' => $columns, 'rows' => $rows, 'bar' => $bar, 'num' => $num];
+    if ($link !== null) {
+        $report['link'] = $link;
+    }
+    return $report;
+}
+
+/** A two-column report (a name and its ticket count) drawn as a bar chart. */
+function count_report(string $key, string $label, array $rows): array
+{
+    return report_result($key, ['label' => $label, 'total' => 'Tickets'], $rows, ['total'], 'total');
+}
+
 function run_report(PDO $pdo, string $key, string $from, string $toExclusive): array
 {
     $resolved = resolved_sort_order($pdo);
     $base = ticket_sla_base();
-    $meta = report_definitions()[$key];
     switch ($key) {
         case 'status':
             $stmt = $pdo->prepare('SELECT s.name AS label, COUNT(t.id) AS total FROM statuses s
                 LEFT JOIN tickets t ON t.status_id = s.id AND t.created_at >= ? AND t.created_at < ?
                 GROUP BY s.name, s.sort_order ORDER BY s.sort_order');
             $stmt->execute([$from, $toExclusive]);
-            return $meta + ['columns' => ['label' => 'Status', 'total' => 'Tickets'], 'rows' => $stmt->fetchAll(), 'bar' => 'total', 'num' => ['total']];
+            return count_report($key, 'Status', $stmt->fetchAll());
         case 'priority':
             $stmt = $pdo->prepare('SELECT p.name AS label, COUNT(t.id) AS total FROM priorities p
-                LEFT JOIN (tickets t JOIN statuses s ON s.id = t.status_id AND s.sort_order < ?) ON t.priority_id = p.id
+                LEFT JOIN (tickets t JOIN statuses s ON s.id = t.status_id AND s.sort_order < ?)
+                    ON t.priority_id = p.id
                 GROUP BY p.name, p.sort_order ORDER BY p.sort_order DESC');
             $stmt->execute([$resolved]);
-            return $meta + ['columns' => ['label' => 'Priority', 'total' => 'Tickets'], 'rows' => $stmt->fetchAll(), 'bar' => 'total', 'num' => ['total']];
+            return count_report($key, 'Priority', $stmt->fetchAll());
         case 'category':
-            $stmt = $pdo->prepare('SELECT c.name + CASE WHEN c.active = 0 THEN N\' (inactive)\' ELSE N\'\' END AS label, COUNT(t.id) AS total
-                FROM categories c LEFT JOIN tickets t ON t.category_id = c.id AND t.created_at >= ? AND t.created_at < ?
-                GROUP BY c.name, c.active ORDER BY total DESC, c.name');
+            $stmt = $pdo->prepare("SELECT c.name + CASE WHEN c.active = 0 THEN N' (inactive)' ELSE N'' END AS label,
+                COUNT(t.id) AS total
+                FROM categories c
+                LEFT JOIN tickets t ON t.category_id = c.id AND t.created_at >= ? AND t.created_at < ?
+                GROUP BY c.name, c.active ORDER BY total DESC, c.name");
             $stmt->execute([$from, $toExclusive]);
-            return $meta + ['columns' => ['label' => 'Category', 'total' => 'Tickets'], 'rows' => $stmt->fetchAll(), 'bar' => 'total', 'num' => ['total']];
+            return count_report($key, 'Category', $stmt->fetchAll());
         case 'workload':
             $stmt = $pdo->prepare("SELECT u.name + CASE WHEN u.active = 0 THEN N' (inactive)' ELSE N'' END AS label,
                 SUM(CASE WHEN x.status_order < ? THEN 1 ELSE 0 END) AS in_queue,
@@ -143,27 +174,52 @@ function run_report(PDO $pdo, string $key, string $from, string $toExclusive): a
                 WHERE r.name IN ('technician', 'administrator')
                 GROUP BY u.name, u.active ORDER BY in_queue DESC, u.name");
             $stmt->execute([$resolved, $resolved]);
-            return $meta + ['columns' => ['label' => 'Technician', 'in_queue' => 'In queue', 'overdue' => 'Overdue', 'resolved' => 'Resolved (all time)'], 'rows' => $stmt->fetchAll(), 'bar' => null, 'num' => ['in_queue', 'overdue', 'resolved']];
+            return report_result(
+                $key,
+                [
+                    'label' => 'Technician',
+                    'in_queue' => 'In queue',
+                    'overdue' => 'Overdue',
+                    'resolved' => 'Resolved (all time)',
+                ],
+                $stmt->fetchAll(),
+                ['in_queue', 'overdue', 'resolved']
+            );
         case 'resolution':
             $stmt = $pdo->prepare("SELECT p.name AS label, p.sla_hours AS target_hours, COUNT(x.id) AS resolved,
-                CAST(AVG(CAST(DATEDIFF(minute, x.created_at, x.resolved_at) AS FLOAT)) / 60.0 AS DECIMAL(10,1)) AS avg_hours,
+                CAST(AVG(CAST(DATEDIFF(minute, x.created_at, x.resolved_at) AS FLOAT)) / 60.0 AS DECIMAL(10,1))
+                    AS avg_hours,
                 CAST(MAX(DATEDIFF(minute, x.created_at, x.resolved_at)) / 60.0 AS DECIMAL(10,1)) AS max_hours
-                FROM priorities p LEFT JOIN ($base) x ON x.priority_order = p.sort_order AND x.resolved_at IS NOT NULL AND x.created_at >= ? AND x.created_at < ?
+                FROM priorities p LEFT JOIN ($base) x ON x.priority_order = p.sort_order
+                    AND x.resolved_at IS NOT NULL AND x.created_at >= ? AND x.created_at < ?
                 GROUP BY p.name, p.sort_order, p.sla_hours ORDER BY p.sort_order DESC");
             $stmt->execute([$from, $toExclusive]);
-            return $meta + ['columns' => ['label' => 'Priority', 'target_hours' => 'Target (h)', 'resolved' => 'Resolved', 'avg_hours' => 'Avg hours', 'max_hours' => 'Longest (h)'], 'rows' => $stmt->fetchAll(), 'bar' => null, 'num' => ['target_hours', 'resolved', 'avg_hours', 'max_hours']];
+            return report_result(
+                $key,
+                [
+                    'label' => 'Priority',
+                    'target_hours' => 'Target (h)',
+                    'resolved' => 'Resolved',
+                    'avg_hours' => 'Avg hours',
+                    'max_hours' => 'Longest (h)',
+                ],
+                $stmt->fetchAll(),
+                ['target_hours', 'resolved', 'avg_hours', 'max_hours']
+            );
         case 'daily':
-            $stmt = $pdo->prepare('SELECT CONVERT(CHAR(10), CAST(created_at AS DATE), 23) AS label, COUNT(*) AS total FROM tickets
-                WHERE created_at >= ? AND created_at < ? GROUP BY CAST(created_at AS DATE) ORDER BY label DESC');
+            $stmt = $pdo->prepare('SELECT CONVERT(CHAR(10), CAST(created_at AS DATE), 23) AS label, COUNT(*) AS total
+                FROM tickets WHERE created_at >= ? AND created_at < ?
+                GROUP BY CAST(created_at AS DATE) ORDER BY label DESC');
             $stmt->execute([$from, $toExclusive]);
-            return $meta + ['columns' => ['label' => 'Date', 'total' => 'Tickets'], 'rows' => $stmt->fetchAll(), 'bar' => 'total', 'num' => ['total']];
+            return count_report($key, 'Date', $stmt->fetchAll());
         case 'sla':
             $stmt = $pdo->prepare("SELECT p.name AS label, p.sla_hours AS target_hours, COUNT(x.id) AS tickets,
                 SUM(CASE WHEN x.sla_state = 'On time' THEN 1 ELSE 0 END) AS on_time,
                 SUM(CASE WHEN x.sla_state = 'Late' THEN 1 ELSE 0 END) AS late,
                 SUM(CASE WHEN x.sla_state = 'Overdue' THEN 1 ELSE 0 END) AS overdue,
                 SUM(CASE WHEN x.sla_state = 'On track' THEN 1 ELSE 0 END) AS on_track
-                FROM priorities p LEFT JOIN ($base) x ON x.priority_order = p.sort_order AND x.created_at >= ? AND x.created_at < ?
+                FROM priorities p LEFT JOIN ($base) x ON x.priority_order = p.sort_order
+                    AND x.created_at >= ? AND x.created_at < ?
                 GROUP BY p.name, p.sort_order, p.sla_hours ORDER BY p.sort_order DESC");
             $stmt->execute([$from, $toExclusive]);
             $rows = array_map(function (array $row) {
@@ -171,7 +227,21 @@ function run_report(PDO $pdo, string $key, string $from, string $toExclusive): a
                 $row['compliance'] = $decided ? round((int) $row['on_time'] / $decided * 100) . '%' : '';
                 return $row;
             }, $stmt->fetchAll());
-            return $meta + ['columns' => ['label' => 'Priority', 'target_hours' => 'Target (h)', 'tickets' => 'Tickets', 'on_time' => 'On time', 'late' => 'Late', 'overdue' => 'Overdue', 'on_track' => 'On track', 'compliance' => 'Met SLA'], 'rows' => $rows, 'bar' => null, 'num' => ['target_hours', 'tickets', 'on_time', 'late', 'overdue', 'on_track', 'compliance']];
+            return report_result(
+                $key,
+                [
+                    'label' => 'Priority',
+                    'target_hours' => 'Target (h)',
+                    'tickets' => 'Tickets',
+                    'on_time' => 'On time',
+                    'late' => 'Late',
+                    'overdue' => 'Overdue',
+                    'on_track' => 'On track',
+                    'compliance' => 'Met SLA',
+                ],
+                $rows,
+                ['target_hours', 'tickets', 'on_time', 'late', 'overdue', 'on_track', 'compliance']
+            );
         case 'due':
             $stmt = $pdo->prepare("SELECT TOP 25 x.id, x.title, x.status, x.priority, a.name AS assignee,
                 CONVERT(CHAR(16), x.due_at, 120) AS due_at,
@@ -180,7 +250,23 @@ function run_report(PDO $pdo, string $key, string $from, string $toExclusive): a
                 WHERE x.status_order < ? ORDER BY x.due_at");
             $stmt->execute([$resolved]);
             $rows = array_map(fn ($row) => ['assignee' => $row['assignee'] ?? 'Unassigned'] + $row, $stmt->fetchAll());
-            return $meta + ['columns' => ['id' => 'ID', 'title' => 'Title', 'status' => 'Status', 'priority' => 'Priority', 'assignee' => 'Assigned to', 'due_at' => 'Due', 'hours_left' => 'Hours left', 'sla_state' => 'SLA'], 'rows' => $rows, 'bar' => null, 'num' => ['hours_left'], 'link' => 'id'];
+            return report_result(
+                $key,
+                [
+                    'id' => 'ID',
+                    'title' => 'Title',
+                    'status' => 'Status',
+                    'priority' => 'Priority',
+                    'assignee' => 'Assigned to',
+                    'due_at' => 'Due',
+                    'hours_left' => 'Hours left',
+                    'sla_state' => 'SLA',
+                ],
+                $rows,
+                ['hours_left'],
+                null,
+                'id'
+            );
     }
     throw new InvalidArgumentException("Unknown report: $key");
 }
@@ -190,8 +276,11 @@ function ticket_export_rows(PDO $pdo, string $from, string $toExclusive): array
 {
     $stmt = $pdo->prepare('SELECT x.id, x.title, r.name AS requester, c.name AS category, x.priority, x.status,
         a.name AS assignee, x.created_at, x.resolved_at, x.closed_at, x.sla_hours, x.due_at, x.sla_state
-        FROM (' . ticket_sla_base() . ') x JOIN users r ON r.id = x.requester_id JOIN categories c ON c.id = x.category_id
-        LEFT JOIN users a ON a.id = x.assigned_to WHERE x.created_at >= ? AND x.created_at < ? ORDER BY x.id');
+        FROM (' . ticket_sla_base() . ') x
+        JOIN users r ON r.id = x.requester_id
+        JOIN categories c ON c.id = x.category_id
+        LEFT JOIN users a ON a.id = x.assigned_to
+        WHERE x.created_at >= ? AND x.created_at < ? ORDER BY x.id');
     $stmt->execute([$from, $toExclusive]);
     return $stmt->fetchAll();
 }

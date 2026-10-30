@@ -1,4 +1,4 @@
-// CTS Service Desk – progressive enhancements. Every page still works without JavaScript:
+// ResolveIT – progressive enhancements. Every page still works without JavaScript:
 // links and forms fall back to normal page loads.
 (function () {
     'use strict';

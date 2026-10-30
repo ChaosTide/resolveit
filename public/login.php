@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
-if (current_user()) { redirect('dashboard.php'); }
+if (current_user()) {
+    redirect('dashboard.php');
+}
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -25,16 +27,18 @@ require __DIR__ . '/partials/header.php';
 ?>
 <section class="card">
     <h1>Sign in</h1>
-    <p class="meta">IT help desk for CTS 4911. Use the email and password your administrator gave you.</p>
-    <?php foreach ($errors as $error) : ?><p class="errors" role="alert"><?= e($error) ?></p><?php endforeach; ?>
+    <p class="meta">The ResolveIT IT help desk. Use the email and password your administrator gave you.</p>
+    <?php foreach ($errors as $error) : ?>
+        <p class="errors" role="alert"><?= e($error) ?></p>
+    <?php endforeach; ?>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
         <label for="email">Email</label>
-        <input id="email" name="email" type="email" maxlength="190" autocomplete="username" value="<?= e($email ?? '') ?>" required autofocus>
+        <input id="email" name="email" type="email" maxlength="190" autocomplete="username"
+            value="<?= e($email ?? '') ?>" required autofocus>
         <label for="password">Password</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required>
         <button type="submit" style="width:100%">Sign In</button>
     </form>
 </section>
 <?php require __DIR__ . '/partials/footer.php'; ?>
-

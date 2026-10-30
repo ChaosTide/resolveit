@@ -2,92 +2,158 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 require_role('administrator');
 $userId = valid_id($_GET['id'] ?? $_POST['id'] ?? null);
-if (!$userId) { http_response_code(400);
-    exit('Invalid user ID.'); }
-$stmt = $pdo->prepare('SELECT u.id,u.name,u.email,u.organization_id,o.name AS organization,u.active,r.name AS role FROM users u LEFT JOIN organizations o ON o.id=u.organization_id JOIN roles r ON r.id=u.role_id WHERE u.id=?');
+if (!$userId) {
+    http_response_code(400);
+    exit('Invalid user ID.');
+}
+$stmt = $pdo->prepare('SELECT u.id, u.name, u.email, u.organization_id, o.name AS organization, u.active, r.name AS role
+    FROM users u LEFT JOIN organizations o ON o.id = u.organization_id JOIN roles r ON r.id = u.role_id
+    WHERE u.id = ?');
 $stmt->execute([$userId]);
 $user = $stmt->fetch();
-if (!$user) { http_response_code(404);
-    exit('User not found.'); }
+if (!$user) {
+    http_response_code(404);
+    exit('User not found.');
+}
 $isSelf = $userId === (int) current_user()['id'];
-$roles = ['employee','technician','administrator'];
+$roles = ['employee', 'technician', 'administrator'];
 $errors = [];
 $user['organization_id'] = $user['organization_id'] === null ? null : (int) $user['organization_id'];
 $organizations = organization_options($pdo, $user['organization_id']);
-$data = ['name' => $user['name'], 'email' => $user['email'], 'role' => $user['role'], 'organization_id' => $user['organization_id']];
+$orgNames = array_column($organizations, 'name', 'id');
+$data = [
+    'name' => $user['name'],
+    'email' => $user['email'],
+    'role' => $user['role'],
+    'organization_id' => $user['organization_id'],
+];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
-    $data = ['name' => clean_text($_POST['name'] ?? ''), 'email' => mb_strtolower(clean_text($_POST['email'] ?? '')), 'role' => clean_text($_POST['role'] ?? ''), 'organization_id' => valid_id($_POST['organization_id'] ?? null)];
+    $data = [
+        'name' => clean_text($_POST['name'] ?? ''),
+        'email' => mb_strtolower(clean_text($_POST['email'] ?? '')),
+        'role' => clean_text($_POST['role'] ?? ''),
+        'organization_id' => valid_id($_POST['organization_id'] ?? null),
+    ];
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
-    if ($data['name'] === '' || mb_strlen($data['name']) > 100) { $errors[] = 'Name is required and must be at most 100 characters.';
+    if ($data['name'] === '' || mb_strlen($data['name']) > 100) {
+        $errors[] = 'Name is required and must be at most 100 characters.';
     }
-    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL) || mb_strlen($data['email']) > 190) { $errors[] = 'Enter a valid email.';
+    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL) || mb_strlen($data['email']) > 190) {
+        $errors[] = 'Enter a valid email.';
     }
-    if (!in_array($data['role'], $roles, true)) { $errors[] = 'Choose a valid role.';
+    if (!in_array($data['role'], $roles, true)) {
+        $errors[] = 'Choose a valid role.';
     }
-    if ($isSelf && $data['role'] !== $user['role']) { $errors[] = 'You cannot change your own role. Ask another administrator.';
+    if ($isSelf && $data['role'] !== $user['role']) {
+        $errors[] = 'You cannot change your own role. Ask another administrator.';
     }
-    if ($data['organization_id'] !== null && !in_array($data['organization_id'], array_map('intval', array_column($organizations, 'id')), true)) { $errors[] = 'Choose a valid organization.';
+    if ($data['organization_id'] !== null && !isset($orgNames[$data['organization_id']])) {
+        $errors[] = 'Choose a valid organization.';
     }
-    if ($password !== '' && strlen($password) < 12) { $errors[] = 'A new password must be at least 12 characters.';
+    if ($password !== '' && strlen($password) < 12) {
+        $errors[] = 'A new password must be at least 12 characters.';
     }
     if (!$errors) {
         $changes = [];
-        foreach (['name','email','role'] as $field) {
-            if ($data[$field] !== $user[$field]) { $changes[] = "$field: {$user[$field]} -> {$data[$field]}";
+        foreach (['name', 'email', 'role'] as $field) {
+            if ($data[$field] !== $user[$field]) {
+                $changes[] = "$field: {$user[$field]} -> {$data[$field]}";
             }
         }
         if ($data['organization_id'] !== $user['organization_id']) {
-            $orgNames = array_column($organizations, 'name', 'id');
-            $changes[] = 'organization: ' . ($user['organization'] ?? 'None') . ' -> ' . ($data['organization_id'] ? $orgNames[$data['organization_id']] : 'None');
+            $newOrganization = $data['organization_id'] ? $orgNames[$data['organization_id']] : 'None';
+            $changes[] = 'organization: ' . ($user['organization'] ?? 'None') . ' -> ' . $newOrganization;
         }
-        if ($password !== '') { $changes[] = 'password reset';
+        if ($password !== '') {
+            $changes[] = 'password reset';
         }
-        if (!$changes) { flash('success', 'No changes to save.');
-            redirect('users.php'); }
+        if (!$changes) {
+            flash('success', 'No changes to save.');
+            redirect('users.php');
+        }
         try {
             $pdo->beginTransaction();
-            $update = $pdo->prepare('UPDATE users SET name=?, email=?, organization_id=?, role_id=(SELECT id FROM roles WHERE name=?) WHERE id=?');
+            $update = $pdo->prepare('UPDATE users SET name = ?, email = ?, organization_id = ?,
+                role_id = (SELECT id FROM roles WHERE name = ?) WHERE id = ?');
             $update->execute([$data['name'], $data['email'], $data['organization_id'], $data['role'], $userId]);
             $now = date('Y-m-d H:i:s');
             if ($password !== '') {
                 // password_changed_at signs the user out of every other session (app/auth.php refresh_session_user).
-                $pdo->prepare('UPDATE users SET password_hash=?, password_changed_at=? WHERE id=?')->execute([password_hash($password, PASSWORD_DEFAULT), $now, $userId]);
+                $pdo->prepare('UPDATE users SET password_hash = ?, password_changed_at = ? WHERE id = ?')
+                    ->execute([password_hash($password, PASSWORD_DEFAULT), $now, $userId]);
             }
             audit_log($pdo, 'user edited', $data['email'], implode('; ', $changes));
             $pdo->commit();
             if ($isSelf) {
                 $_SESSION['user']['name'] = $data['name'];
                 $_SESSION['user']['email'] = $data['email'];
-                if ($password !== '') { $_SESSION['login_at'] = $now; // keep the administrator's own session
+                if ($password !== '') {
+                    $_SESSION['login_at'] = $now; // keep the administrator's own session
                 }
             }
             flash('success', 'User updated.');
             redirect('users.php');
         } catch (PDOException $ex) {
-            if ($pdo->inTransaction()) { $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
             }
-            $errors[] = $ex->getCode() === '23000' ? 'That email already belongs to another user.' : 'The user could not be updated.';
+            $errors[] = $ex->getCode() === '23000'
+                ? 'That email already belongs to another user.'
+                : 'The user could not be updated.';
         }
     }
 }
+$organizationLabels = [];
+foreach ($organizations as $o) {
+    $organizationLabels[$o['id']] = $o['name'] . ($o['active'] ? '' : ' (inactive)');
+}
+$roleLabels = array_combine($roles, array_map('ucfirst', $roles));
 $pageTitle = 'Edit User';
 require __DIR__ . '/partials/header.php';
 ?>
-<div class="page-header"><div><p class="breadcrumb"><a href="users.php">Manage Users</a> / Edit</p><h1>Edit user</h1><p class="subtitle"><?= e($user['name']) ?> &middot; <?= e($user['email']) ?></p></div></div>
+<div class="page-header">
+    <div>
+        <p class="breadcrumb"><a href="users.php">Manage Users</a> / Edit</p>
+        <h1>Edit user</h1>
+        <p class="subtitle"><?= e($user['name']) ?> &middot; <?= e($user['email']) ?></p>
+    </div>
+</div>
 <section class="card" style="max-width: 640px">
-<p class="meta">Account is <?= $user['active'] ? 'active' : 'deactivated' ?>. Activate or deactivate it from <a href="users.php">Manage Users</a>.</p>
-<?php foreach ($errors as $error) : ?><p class="errors"><?= e($error) ?></p><?php endforeach; ?>
+<p class="meta">
+    Account is <?= $user['active'] ? 'active' : 'deactivated' ?>.
+    Activate or deactivate it from <a href="users.php">Manage Users</a>.
+</p>
+<?php foreach ($errors as $error) : ?>
+    <p class="errors"><?= e($error) ?></p>
+<?php endforeach; ?>
 <form method="post">
-    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="id" value="<?= $userId ?>">
-    <label for="name">Name</label><input id="name" name="name" maxlength="100" value="<?= e($data['name']) ?>" required>
-    <label for="email">Email</label><input id="email" name="email" type="email" maxlength="190" value="<?= e($data['email']) ?>" required>
-    <label for="organization_id">Organization</label><select id="organization_id" name="organization_id"><option value="">None</option><?php foreach ($organizations as $o) : ?><option value="<?= (int) $o['id'] ?>"<?= $data['organization_id'] === (int) $o['id'] ? ' selected' : '' ?>><?= e($o['name']) ?><?= $o['active'] ? '' : ' (inactive)' ?></option><?php endforeach; ?></select>
+    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+    <input type="hidden" name="id" value="<?= $userId ?>">
+    <label for="name">Name</label>
+    <input id="name" name="name" maxlength="100" value="<?= e($data['name']) ?>" required>
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" maxlength="190" value="<?= e($data['email']) ?>" required>
+    <label for="organization_id">Organization</label>
+    <select id="organization_id" name="organization_id">
+        <option value="">None</option>
+        <?= select_options($organizationLabels, $data['organization_id']) ?>
+    </select>
     <label for="role">Role</label>
-    <select id="role" name="role" <?= $isSelf ? 'disabled' : '' ?>><?php foreach ($roles as $role) : ?><option value="<?= $role ?>" <?= $data['role'] === $role ? 'selected' : '' ?>><?= ucfirst($role) ?></option><?php endforeach; ?></select>
-    <?php if ($isSelf) : ?><input type="hidden" name="role" value="<?= e($user['role']) ?>"><p class="meta">You cannot change your own role.</p><?php endif; ?>
-    <label for="password">New password</label><input id="password" name="password" type="password" minlength="12" autocomplete="new-password"><p class="field-hint">Leave blank to keep the current password. Setting one signs this user out everywhere.</p>
-    <div class="form-actions"><button type="submit">Save User</button><a class="button secondary" href="users.php" style="margin-top:1rem">Cancel</a></div>
+    <select id="role" name="role" <?= $isSelf ? 'disabled' : '' ?>>
+        <?= select_options($roleLabels, $data['role']) ?>
+    </select>
+    <?php if ($isSelf) : ?>
+        <input type="hidden" name="role" value="<?= e($user['role']) ?>">
+        <p class="meta">You cannot change your own role.</p>
+    <?php endif; ?>
+    <label for="password">New password</label>
+    <input id="password" name="password" type="password" minlength="12" autocomplete="new-password">
+    <p class="field-hint">Leave blank to keep the current password. Setting one signs this user out everywhere.</p>
+    <div class="form-actions">
+        <button type="submit">Save User</button>
+        <a class="button secondary" href="users.php" style="margin-top:1rem">Cancel</a>
+    </div>
 </form>
 </section>
 <?php require __DIR__ . '/partials/footer.php'; ?>

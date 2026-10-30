@@ -76,8 +76,12 @@ $pdo = new PDO($dsn($dbName), $appUser, $appPassword, $options);
 $exists = $pdo->prepare('SELECT COUNT(*) FROM users WHERE email = ?');
 $exists->execute([$adminEmail]);
 if ((int) $exists->fetchColumn() === 0) {
-    $pdo->prepare("INSERT INTO users (role_id, name, email, password_hash) SELECT id, ?, ?, ? FROM roles WHERE name = 'administrator'")
-        ->execute([getenv('ADMIN_NAME') ?: 'Docker Admin', $adminEmail, password_hash($adminPassword, PASSWORD_DEFAULT)]);
+    $insert = $pdo->prepare(
+        "INSERT INTO users (role_id, name, email, password_hash)
+         SELECT id, ?, ?, ? FROM roles WHERE name = 'administrator'"
+    );
+    $adminName = getenv('ADMIN_NAME') ?: 'Docker Admin';
+    $insert->execute([$adminName, $adminEmail, password_hash($adminPassword, PASSWORD_DEFAULT)]);
     echo "Created administrator $adminEmail.\n";
 } else {
     echo "Administrator $adminEmail already exists.\n";

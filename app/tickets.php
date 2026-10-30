@@ -83,12 +83,35 @@ function send_stamp(string $stamp): never
     exit;
 }
 
+/** The "Assigned to" filter from ?assignee=: 'me', 'none', a user id, or null. Employees never filter by it. */
+function assignee_filter(array $query, bool $staff): int|string|null
+{
+    if (!$staff) {
+        return null;
+    }
+    $value = $query['assignee'] ?? null;
+    return in_array($value, ['me', 'none'], true) ? $value : valid_id($value);
+}
+
 /** CSV columns for ticket exports (the list and advanced search share them). */
 function ticket_csv_columns(bool $staff): array
 {
-    $columns = ['id' => 'ID', 'title' => 'Summary', 'requester' => 'Requester', 'requester_organization' => 'Organization',
-        'assignee' => 'Assignee', 'priority' => 'Priority', 'category' => 'Category', 'status' => 'Status', 'waiting' => 'Waiting on requester',
-        'created_at' => 'Created', 'updated_at' => 'Updated', 'due_date' => 'Due date', 'response_time' => 'Response time', 'close_time' => 'Close time'];
+    $columns = [
+        'id' => 'ID',
+        'title' => 'Summary',
+        'requester' => 'Requester',
+        'requester_organization' => 'Organization',
+        'assignee' => 'Assignee',
+        'priority' => 'Priority',
+        'category' => 'Category',
+        'status' => 'Status',
+        'waiting' => 'Waiting on requester',
+        'created_at' => 'Created',
+        'updated_at' => 'Updated',
+        'due_date' => 'Due date',
+        'response_time' => 'Response time',
+        'close_time' => 'Close time',
+    ];
     if ($staff) {
         $columns += ['sla_state' => 'SLA', 'due_at' => 'SLA due'];
     }

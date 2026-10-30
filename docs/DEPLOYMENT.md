@@ -1,4 +1,4 @@
-# CTS 4911 – IT Ticket Management System
+# ResolveIT – IT Ticket Management System (CTS 4911)
 ## Deployment Guide and Scope Record
 
 | | |

@@ -40,7 +40,8 @@ session_set_cookie_params([
 ]);
 session_start();
 
-if (isset($_SESSION['last_activity']) && time() - (int) $_SESSION['last_activity'] > (int) $config['session']['idle_timeout']) {
+$idleSeconds = time() - (int) ($_SESSION['last_activity'] ?? time());
+if ($idleSeconds > (int) $config['session']['idle_timeout']) {
     $_SESSION = [];
     session_destroy();
     session_start();

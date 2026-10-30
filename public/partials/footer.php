@@ -4,7 +4,7 @@
 </div>
 <?php else : ?>
 </main>
-<footer class="auth-footer">Classroom prototype for CTS 4911</footer>
+<footer class="auth-footer">ResolveIT &middot; CTS 4911 capstone project</footer>
 <?php endif; ?>
 </body>
 </html>

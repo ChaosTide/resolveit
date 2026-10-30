@@ -30,12 +30,16 @@ function login_locked_out(PDO $pdo, string $email, string $ip): bool
     $stmt = $pdo->prepare("SELECT
         (SELECT COUNT(*) FROM login_attempts WHERE email = ? AND succeeded = 0
             AND created_at > DATEADD(minute, $window, SYSDATETIME())
-            AND created_at > ISNULL((SELECT MAX(created_at) FROM login_attempts WHERE email = ? AND succeeded = 1), '19000101')) AS email_failures,
+            AND created_at > ISNULL(
+                (SELECT MAX(created_at) FROM login_attempts WHERE email = ? AND succeeded = 1),
+                '19000101'
+            )) AS email_failures,
         (SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND succeeded = 0
             AND created_at > DATEADD(minute, $window, SYSDATETIME())) AS ip_failures");
     $stmt->execute([$email, $email, $ip]);
     $counts = $stmt->fetch();
-    return (int) $counts['email_failures'] >= LOGIN_MAX_FAILURES_PER_EMAIL || (int) $counts['ip_failures'] >= LOGIN_MAX_FAILURES_PER_IP;
+    return (int) $counts['email_failures'] >= LOGIN_MAX_FAILURES_PER_EMAIL
+        || (int) $counts['ip_failures'] >= LOGIN_MAX_FAILURES_PER_IP;
 }
 
 function record_login_attempt(PDO $pdo, string $email, string $ip, bool $succeeded): void
@@ -85,10 +89,15 @@ function refresh_session_user(PDO $pdo): void
     if (!$user || !$user['active'] || $passwordChanged) {
         $_SESSION = [];
         session_regenerate_id(true);
-        $_SESSION['flash'] = ['type' => 'error', 'message' => 'You have been signed out because your account was changed. Please sign in again.'];
+        flash('error', 'You have been signed out because your account was changed. Please sign in again.');
         return;
     }
-    $_SESSION['user'] = ['id' => (int) $_SESSION['user']['id'], 'name' => $user['name'], 'email' => $user['email'], 'role' => $user['role']];
+    $_SESSION['user'] = [
+        'id' => (int) $_SESSION['user']['id'],
+        'name' => $user['name'],
+        'email' => $user['email'],
+        'role' => $user['role'],
+    ];
 }
 
 function require_login(): void

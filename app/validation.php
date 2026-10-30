@@ -37,5 +37,7 @@ function validate_ticket_input(array $input): array
 function unique_error(PDOException $ex, string $thing): string
 {
     $article = in_array(strtolower($thing[0]), ['a', 'e', 'i', 'o', 'u'], true) ? 'An' : 'A';
-    return $ex->getCode() === '23000' ? "$article $thing with that name already exists." : "The $thing could not be saved.";
+    return $ex->getCode() === '23000'
+        ? "$article $thing with that name already exists."
+        : "The $thing could not be saved.";
 }

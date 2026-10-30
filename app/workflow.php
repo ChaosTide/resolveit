@@ -41,7 +41,10 @@ function workflow_error(array $statuses, int $currentId, int $targetId): ?string
     $names = array_column($statuses, 'name', 'id');
     $from = $names[$currentId] ?? 'Unknown';
     $to = $names[$targetId] ?? 'Unknown';
-    $options = array_map(fn (int $id) => $names[$id], array_diff(allowed_status_ids($statuses, $currentId), [$currentId]));
+    $nextIds = array_diff(allowed_status_ids($statuses, $currentId), [$currentId]);
+    $options = array_map(fn (int $id) => $names[$id], $nextIds);
     $next = $options ? implode(' or ', $options) : 'no other status (Closed is final)';
-    return "Status cannot move from {$from} to {$to}. Tickets must follow Open -> Assigned -> In Progress -> Resolved -> Closed; from {$from} the next allowed status is {$next}.";
+    return "Status cannot move from {$from} to {$to}. "
+        . 'Tickets must follow Open -> Assigned -> In Progress -> Resolved -> Closed; '
+        . "from {$from} the next allowed status is {$next}.";
 }
