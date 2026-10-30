@@ -23,7 +23,7 @@ When someone opens a page, this is what happens:
 | **HTML** | The structure of every page (forms, tables, buttons) | Written inside the PHP files in [public/](../public/) | – |
 | **CSS** | Colours, layout, badges, phone layout | [public/assets/style.css](../public/assets/style.css) | 1 file, ~310 lines |
 | **JavaScript** | Live countdowns, auto-refresh, split view, bulk select | [public/assets/app.js](../public/assets/app.js) | 1 file, ~280 lines |
-| **PHP** | All the logic: login, roles, tickets, workflow, reports | [app/](../app/) and [public/](../public/) | 33 files, ~2,400 lines |
+| **PHP** | All the logic: login, roles, tickets, workflow, reports | [app/](../app/) and [public/](../public/) | 35 files, ~4,200 lines (PSR-12 formatted) |
 | **SQL** | The database tables and queries | [database/](../database/) | 9 files, ~370 lines |
 | **Apache** | The web server | [deploy/apache/cts4911.conf](../deploy/apache/cts4911.conf) | – |
 | **SQL Server** | The database server | `WORKSTATION\JLB282`, database `TicketManagement` | 12 tables |

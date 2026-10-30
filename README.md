@@ -58,6 +58,16 @@ Keep `app`, `database`, `scripts`, and `tests` outside Apache's public document 
    .\tests\check-local.ps1 -AdminPassword '<admin password>'
    ```
 
+### Code style check (PSR-12)
+
+All PHP follows the PSR-12 coding standard; the rules are in `phpcs.xml`. Check it with PHP_CodeSniffer:
+
+```powershell
+C:\Users\draft\AppData\Local\CodexTicketSystem\php83\php.exe C:\Users\draft\AppData\Local\CodexTicketSystem\phpcs\phpcs.phar
+```
+
+`phpcbf.phar` in the same folder fixes most formatting problems automatically. Lines are kept under 120 characters.
+
 ### Apache deployment
 
 The site is deployed on Apache 2.4 (Apache Lounge Win64 build) with PHP 8.3 loaded as an Apache module.
