@@ -16,12 +16,20 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($pageTitle ?? 'ResolveIT') ?> · ResolveIT</title>
-    <link rel="stylesheet" href="assets/style.css">
-    <script src="assets/app.js" defer></script>
+    <link rel="stylesheet" href="assets/style.css?v=<?= filemtime(__DIR__ . '/../assets/style.css') ?>">
+    <script src="assets/app.js?v=<?= filemtime(__DIR__ . '/../assets/app.js') ?>" defer></script>
 </head>
 <?php if (!$currentUser) : ?>
 <body class="auth-layout">
-<header class="auth-brand"><span class="logo" aria-hidden="true"><?= icon('tickets') ?></span> ResolveIT</header>
+<header class="auth-brand">
+    <div class="brand-mark"><span class="logo" aria-hidden="true"><?= icon('tickets') ?></span> ResolveIT</div>
+    <p class="auth-tagline">IT support that actually gets back to you.</p>
+    <div class="auth-features">
+        <span class="auth-feature"><?= icon('tickets') ?> Log a ticket in seconds</span>
+        <span class="auth-feature"><?= icon('clock') ?> SLA-backed response times</span>
+        <span class="auth-feature"><?= icon('check') ?> Tracked through to resolution</span>
+    </div>
+</header>
 <main class="auth-main">
 <?php else : ?>
 <body class="app-layout">

@@ -3,6 +3,15 @@
 (function () {
     'use strict';
 
+    var EYE_PATH = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>';
+    var EYE_OFF_PATH = '<path d="M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 7 11 7a22 22 0 0 1-3.22 4.3M6.6 6.6A22 22 0 0'
+        + ' 0 1 12s4 7 11 7a10.6 10.6 0 0 0 4.24-.87M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
+
+    function svgIcon(path) {
+        return '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
+            + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg>';
+    }
+
     function durationText(seconds) {
         seconds = Math.abs(seconds);
         var days = Math.floor(seconds / 86400);
@@ -79,6 +88,28 @@
         // Replies posted from the split-view pane come back to the same list.
         root.querySelectorAll('input[data-back-url]').forEach(function (input) {
             if (document.querySelector('[data-split-pane]')) input.value = 'tickets.php' + location.search;
+        });
+
+        // Password fields get a show/hide toggle so people can check what they typed.
+        root.querySelectorAll('input[type="password"]').forEach(function (input) {
+            if (input.dataset.toggled) return;
+            input.dataset.toggled = '1';
+            var wrap = document.createElement('div');
+            wrap.className = 'password-field';
+            input.parentNode.insertBefore(wrap, input);
+            wrap.appendChild(input);
+            var toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'icon-button password-toggle';
+            toggle.setAttribute('aria-label', 'Show password');
+            toggle.innerHTML = svgIcon(EYE_PATH);
+            wrap.appendChild(toggle);
+            toggle.addEventListener('click', function () {
+                var reveal = input.type === 'password';
+                input.type = reveal ? 'text' : 'password';
+                toggle.innerHTML = svgIcon(reveal ? EYE_OFF_PATH : EYE_PATH);
+                toggle.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+            });
         });
 
         updateSlaBadges(root);
@@ -286,6 +317,10 @@
         } else if (form.matches('[data-bulk-form]') && !document.querySelector('input[name="ids[]"][form="bulk-form"]:checked')) {
             event.preventDefault();
             window.alert('Select at least one ticket first.');
+        }
+        if (!event.defaultPrevented) {
+            var btn = form.querySelector('button:not([type="button"])');
+            if (btn) { btn.classList.add('is-loading'); btn.disabled = true; }
         }
     });
 
