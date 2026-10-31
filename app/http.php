@@ -35,8 +35,10 @@ function csrf_token(): string
 /** Stops the request unless the submitted form carries this session's CSRF token. */
 function verify_csrf(): void
 {
+    $sessionToken = $_SESSION['csrf_token'] ?? '';
     $token = $_POST['csrf_token'] ?? '';
-    if (!is_string($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+    // An empty session token must never match an empty/missing submitted one (login CSRF).
+    if ($sessionToken === '' || !is_string($token) || !hash_equals($sessionToken, $token)) {
         // 403 rather than the non-standard 419, which Apache turns into a 500 error.
         http_response_code(403);
         exit('The form expired or was invalid. Go back, refresh, and try again.');
