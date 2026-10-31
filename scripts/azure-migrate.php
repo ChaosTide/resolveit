@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+// Creates (or upgrades) the schema for a cloud SQL Server database: the full schema on an
+// empty database, or just the upgrades a database doesn't have yet. A small table
+// (dbo.capstone_migrations) records which upgrades have already run, the same idea the
+// project's local database/migrations/*.sql files follow, so running this script again
+// after a container restart is always safe -- already-applied steps are skipped.
 if (PHP_SAPI !== 'cli') {
     exit;
 }
@@ -117,6 +122,8 @@ $upgrades = [
               WHERE name = N'idx_users_organization' AND object_id = OBJECT_ID(N'users'))
             CREATE INDEX idx_users_organization ON users(organization_id)"],
 ];
+// Apply any upgrade this database hasn't recorded yet, each one in its own transaction
+// so a failure partway through an upgrade can't leave the schema half-changed.
 $applied = array_map('intval', $pdo->query('SELECT id FROM dbo.capstone_migrations')->fetchAll(PDO::FETCH_COLUMN));
 foreach ($upgrades as $id => $statements) {
     if (in_array($id, $applied, true)) {

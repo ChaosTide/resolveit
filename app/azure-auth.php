@@ -2,7 +2,13 @@
 
 declare(strict_types=1);
 
-// App Service Authentication must require Microsoft login before reaching PHP.
+/**
+ * Reads the signed-in Microsoft account from the header Azure App Service's own Easy Auth
+ * proxy attaches after it verifies the sign-in -- PHP never sees a request that didn't go
+ * through that proxy first. Still re-checks the tenant and an explicit email allowlist
+ * rather than trusting "signed in with Microsoft" alone, in case the allowed tenant ever
+ * includes accounts outside this project's team.
+ */
 function azure_team_identity(): array
 {
     $raw = base64_decode($_SERVER['HTTP_X_MS_CLIENT_PRINCIPAL'] ?? '', true);
@@ -23,6 +29,7 @@ function azure_team_identity(): array
     return ['email' => $email, 'name' => $claims['name'] ?? $email];
 }
 
+/** Signs in the ResolveIT account matching the verified Microsoft identity's email. */
 function azure_team_login(PDO $pdo, array $identity): void
 {
     $stmt = $pdo->prepare(

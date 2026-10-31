@@ -33,6 +33,7 @@ function allowed_status_ids(array $statuses, int $currentId): array
     return $allowed;
 }
 
+/** Null if the status change is allowed; otherwise a message explaining what is allowed instead. */
 function workflow_error(array $statuses, int $currentId, int $targetId): ?string
 {
     if (in_array($targetId, allowed_status_ids($statuses, $currentId), true)) {

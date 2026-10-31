@@ -11,6 +11,7 @@ function e(?string $value): string
     return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+/** Sends the browser to another page on this site and stops the script immediately. */
 function redirect(string $path): never
 {
     header('Location: ' . $path);

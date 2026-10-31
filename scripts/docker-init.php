@@ -26,6 +26,10 @@ $appUser = $env('DB_USER');
 $appPassword = $env('DB_PASSWORD');
 $saUser = $env('DB_ADMIN_USER');
 $saPassword = $env('DB_ADMIN_PASSWORD');
+// A database/login NAME can't be sent as a query parameter the way a value can (SQL Server
+// has no placeholder syntax for "CREATE DATABASE ?"), so it has to be checked by hand before
+// being placed directly into the SQL text below. Restricting it to plain letters/digits/
+// underscore rules out anything that could break out of the SQL statement.
 if (!preg_match('/^[A-Za-z][A-Za-z0-9_]{0,63}$/', $dbName) || !preg_match('/^[A-Za-z][A-Za-z0-9_]{0,63}$/', $appUser)) {
     fwrite(STDERR, "DB_NAME and DB_USER must be simple identifiers.\n");
     exit(1);

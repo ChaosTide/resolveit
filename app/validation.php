@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+/** Treats any non-string input (missing field, array, etc.) as an empty string, then trims it. */
 function clean_text(mixed $value): string
 {
     return trim(is_string($value) ? $value : '');
 }
 
+/** Parses a value as a positive whole-number id, or null if it isn't one. Used on every ?id=. */
 function valid_id(mixed $value): ?int
 {
     $result = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);

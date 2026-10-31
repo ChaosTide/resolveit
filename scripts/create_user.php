@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+// Creates one account directly in the database. Used to make the first administrator
+// account on a fresh setup, and for any other sample/test account the team needs.
+// There is deliberately no web page for this -- "create an account with any role I ask
+// for" must never be something an anonymous visitor can reach, so it only exists as a
+// script a team member runs themselves, from a machine that already has database access.
 if (PHP_SAPI !== 'cli') {
     exit("Command line only.\n");
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+/** The signed-in user's id, name, email, and role, or null if nobody is signed in. */
 function current_user(): ?array
 {
     return $_SESSION['user'] ?? null;
@@ -23,6 +24,10 @@ function client_ip(): string
     return $remote;
 }
 
+/**
+ * True if this email or this network address has failed to sign in too many times
+ * recently (brute-force protection). Counts reset automatically after LOGIN_WINDOW_MINUTES.
+ */
 function login_locked_out(PDO $pdo, string $email, string $ip): bool
 {
     // Failures for an email only count after its most recent successful sign-in.
@@ -42,12 +47,18 @@ function login_locked_out(PDO $pdo, string $email, string $ip): bool
         || (int) $counts['ip_failures'] >= LOGIN_MAX_FAILURES_PER_IP;
 }
 
+/** Logs one sign-in attempt so login_locked_out() can see recent history for this email/address. */
 function record_login_attempt(PDO $pdo, string $email, string $ip, bool $succeeded): void
 {
     $pdo->prepare('INSERT INTO login_attempts (email, ip, succeeded) VALUES (?, ?, ?)')
         ->execute([mb_substr($email, 0, 190), mb_substr($ip, 0, 45), $succeeded ? 1 : 0]);
 }
 
+/**
+ * Checks an email/password against the stored hash and, on success, starts the session.
+ * Returns false (never an exception) for a wrong email or wrong password, so callers can't
+ * tell which one was wrong -- that would help an attacker guess valid emails.
+ */
 function login_user(PDO $pdo, string $email, string $password): bool
 {
     $stmt = $pdo->prepare(
@@ -60,6 +71,8 @@ function login_user(PDO $pdo, string $email, string $password): bool
     if (!$user || !password_verify($password, $user['password_hash'])) {
         return false;
     }
+    // A fresh session id on every successful sign-in stops an old/stolen session id
+    // from being reused to hijack this login (session fixation).
     session_regenerate_id(true);
     $_SESSION['user'] = [
         'id' => (int) $user['id'],
@@ -100,6 +113,7 @@ function refresh_session_user(PDO $pdo): void
     ];
 }
 
+/** Sends an anonymous visitor to the sign-in page. Every protected page calls this first. */
 function require_login(): void
 {
     if (!current_user()) {
@@ -108,12 +122,18 @@ function require_login(): void
     }
 }
 
+/** True if someone is signed in and their role is one of the given roles. */
 function has_role(string ...$roles): bool
 {
     $user = current_user();
     return $user !== null && in_array($user['role'], $roles, true);
 }
 
+/**
+ * The access-control gate: require_login() first, then stop the request with 403 if
+ * the signed-in user's role is not allowed. Called as the first line of every page
+ * that should not be open to every role, so the check can never be skipped by accident.
+ */
 function require_role(string ...$roles): void
 {
     require_login();
@@ -123,6 +143,7 @@ function require_role(string ...$roles): void
     }
 }
 
+/** Employees may only see their own tickets; technicians and administrators may see every ticket. */
 function can_view_ticket(array $ticket): bool
 {
     $user = current_user();

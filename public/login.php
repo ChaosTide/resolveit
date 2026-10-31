@@ -1,4 +1,7 @@
 <?php
+// The sign-in page: the only page an anonymous visitor can POST to (see app/http.php's
+// verify_csrf() for why that makes this page special), and the entry point for the whole
+// authentication flow described in app/auth.php.
 require_once __DIR__ . '/../app/bootstrap.php';
 if (current_user()) {
     redirect('dashboard.php');
@@ -10,12 +13,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
     $normalizedEmail = mb_strtolower($email);
     $ip = client_ip();
+    // Checked in this order: input shape first, then rate limit, then the real
+    // credential check -- so a locked-out attacker never even reaches password_verify().
     if (!filter_var($email, FILTER_VALIDATE_EMAIL) || $password === '') {
         $errors[] = 'Enter a valid email and password.';
     } elseif (login_locked_out($pdo, $normalizedEmail, $ip)) {
         $errors[] = 'Too many failed sign-in attempts. Wait 15 minutes and try again.';
     } elseif (!login_user($pdo, $email, $password)) {
         record_login_attempt($pdo, $normalizedEmail, $ip, false);
+        // Deliberately the same message for "no such account" and "wrong password" --
+        // telling them apart would let an attacker find out which emails have accounts.
         $errors[] = 'The email or password is incorrect, or the account is inactive.';
     } else {
         record_login_attempt($pdo, $normalizedEmail, $ip, true);

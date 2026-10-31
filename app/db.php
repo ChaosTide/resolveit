@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+/**
+ * Opens the one connection style used everywhere in the app: real (not emulated)
+ * prepared statements, exceptions instead of silently-ignored errors, and rows
+ * returned as associative arrays. $settings comes from app/config.php (local) or
+ * app/config.azure.php (Docker/Azure, read from environment variables).
+ */
 function db(array $settings): PDO
 {
     $dsn = sprintf(
