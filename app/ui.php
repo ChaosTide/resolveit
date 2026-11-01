@@ -169,7 +169,7 @@ function icon(string $name): string
 function logo_mark(): string
 {
     $mtime = filemtime(__DIR__ . '/../public/assets/logo-mark.png');
-    return '<img class="icon" src="assets/logo-mark.png?v=' . $mtime . '" alt="" width="24" height="24">';
+    return '<img class="icon" src="assets/logo-mark.png?v=' . $mtime . '" alt="" width="64" height="64">';
 }
 
 /**
