@@ -145,8 +145,10 @@ $filterQuery = array_filter([
     'layout' => $layoutParam,
 ], fn ($v) => $v !== null && $v !== '');
 $activeQuery = $filterQuery + ['sort' => $sort, 'dir' => $dir];
-$hasFilters = $filters['q'] !== '' || $filters['status'] || $filters['priority'] || $filters['category']
-    || $filters['assignee'] || $filters['organization'];
+$dropdownFilterCount = count(array_filter([
+    $filters['status'], $filters['priority'], $filters['category'], $filters['assignee'], $filters['organization'],
+]));
+$hasFilters = $filters['q'] !== '' || $dropdownFilterCount > 0;
 $layoutToggle = array_filter(['layout' => $split ? null : 'split'] + $activeQuery, fn ($v) => $v !== null);
 $clearQuery = array_filter(['view' => $viewParam, 'layout' => $layoutParam]);
 $sortOptions = [];
@@ -189,10 +191,12 @@ require __DIR__ . '/partials/header.php';
         'dir' => $dir,
         'layout' => $layoutParam,
     ]);
+    $chipCount = $chipCounts[$key] ?? 0;
+    $chipActive = $filters['view'] === $key;
     ?>
-    <a class="chip" href="tickets.php?<?= e(http_build_query($chipQuery)) ?>"
-        <?= $filters['view'] === $key ? 'aria-current="true"' : '' ?>>
-        <?= e($label) ?> <span class="count"><?= $chipCounts[$key] ?? 0 ?></span>
+    <a class="chip<?= $chipCount === 0 && !$chipActive ? ' chip-zero' : '' ?>"
+        href="tickets.php?<?= e(http_build_query($chipQuery)) ?>" <?= $chipActive ? 'aria-current="true"' : '' ?>>
+        <?= e($label) ?> <span class="count"><?= $chipCount ?></span>
     </a>
 <?php endforeach; ?>
 </nav>
@@ -201,61 +205,73 @@ require __DIR__ . '/partials/header.php';
     <?php if ($viewParam !== null) : ?><input type="hidden" name="view" value="<?= e($viewParam) ?>"><?php endif; ?>
     <?php if ($split) : ?><input type="hidden" name="layout" value="split"><?php endif; ?>
     <input type="hidden" name="dir" value="<?= e($dir) ?>">
-    <div class="filter wide">
-        <label for="f-q">Search</label>
-        <input id="f-q" type="search" name="q" value="<?= e($filters['q']) ?>"
-            placeholder="Ticket #, title, or description">
+    <div class="filter-row">
+        <div class="filter wide">
+            <label for="f-q">Search</label>
+            <input id="f-q" type="search" name="q" value="<?= e($filters['q']) ?>"
+                placeholder="Ticket #, title, or description">
+        </div>
+        <button type="submit"><?= icon('search') ?>Apply</button>
+        <?php if ($hasFilters) : ?>
+            <a class="button secondary" href="tickets.php?<?= e(http_build_query($clearQuery)) ?>">Clear</a>
+        <?php endif; ?>
     </div>
-    <div class="filter">
-        <label for="f-status">Status</label>
-        <select id="f-status" name="status" data-autosubmit>
-            <option value="">Any status</option>
-            <?= select_options(array_column($statuses, 'name', 'id'), $filters['status']) ?>
-        </select>
-    </div>
-    <div class="filter">
-        <label for="f-priority">Priority</label>
-        <select id="f-priority" name="priority" data-autosubmit>
-            <option value="">Any priority</option>
-            <?= select_options(array_column($priorities, 'name', 'id'), $filters['priority']) ?>
-        </select>
-    </div>
-    <div class="filter">
-        <label for="f-category">Category</label>
-        <select id="f-category" name="category" data-autosubmit>
-            <option value="">Any category</option>
-            <?= select_options(array_column($categories, 'name', 'id'), $filters['category']) ?>
-        </select>
-    </div>
-    <?php if ($staff) : ?>
-    <div class="filter">
-        <label for="f-assignee">Assigned to</label>
-        <select id="f-assignee" name="assignee" data-autosubmit>
-            <option value="">Anyone</option>
-            <?= select_options(
-                ['me' => 'Me', 'none' => 'Unassigned'] + array_column($technicians, 'name', 'id'),
-                $filters['assignee']
-            ) ?>
-        </select>
-    </div>
-    <div class="filter">
-        <label for="f-organization">Organization</label>
-        <select id="f-organization" name="organization" data-autosubmit>
-            <option value="">Any organization</option>
-            <?= select_options(array_column($organizations, 'name', 'id'), $filters['organization']) ?>
-        </select>
-    </div>
-    <?php endif; ?>
-    <div class="filter">
-        <label for="f-sort">Sort</label>
-        <select id="f-sort" name="sort" data-autosubmit data-reset-dir>
-            <?= select_options($sortOptions, $sort) ?>
-        </select>
-    </div>
-    <button type="submit"><?= icon('search') ?>Apply</button>
-    <?php if ($hasFilters) : ?>
-        <a class="button secondary" href="tickets.php?<?= e(http_build_query($clearQuery)) ?>">Clear</a>
-    <?php endif; ?>
+    <details class="filter-more"<?= $dropdownFilterCount > 0 ? ' open' : '' ?>>
+        <summary>
+            More filters
+            <?php if ($dropdownFilterCount > 0) : ?>
+                <span class="count"><?= $dropdownFilterCount ?></span>
+            <?php endif; ?>
+        </summary>
+        <div class="filter-row">
+            <div class="filter">
+                <label for="f-status">Status</label>
+                <select id="f-status" name="status" data-autosubmit>
+                    <option value="">Any status</option>
+                    <?= select_options(array_column($statuses, 'name', 'id'), $filters['status']) ?>
+                </select>
+            </div>
+            <div class="filter">
+                <label for="f-priority">Priority</label>
+                <select id="f-priority" name="priority" data-autosubmit>
+                    <option value="">Any priority</option>
+                    <?= select_options(array_column($priorities, 'name', 'id'), $filters['priority']) ?>
+                </select>
+            </div>
+            <div class="filter">
+                <label for="f-category">Category</label>
+                <select id="f-category" name="category" data-autosubmit>
+                    <option value="">Any category</option>
+                    <?= select_options(array_column($categories, 'name', 'id'), $filters['category']) ?>
+                </select>
+            </div>
+            <?php if ($staff) : ?>
+            <div class="filter">
+                <label for="f-assignee">Assigned to</label>
+                <select id="f-assignee" name="assignee" data-autosubmit>
+                    <option value="">Anyone</option>
+                    <?= select_options(
+                        ['me' => 'Me', 'none' => 'Unassigned'] + array_column($technicians, 'name', 'id'),
+                        $filters['assignee']
+                    ) ?>
+                </select>
+            </div>
+            <div class="filter">
+                <label for="f-organization">Organization</label>
+                <select id="f-organization" name="organization" data-autosubmit>
+                    <option value="">Any organization</option>
+                    <?= select_options(array_column($organizations, 'name', 'id'), $filters['organization']) ?>
+                </select>
+            </div>
+            <?php endif; ?>
+            <div class="filter">
+                <label for="f-sort">Sort</label>
+                <select id="f-sort" name="sort" data-autosubmit data-reset-dir>
+                    <?= select_options($sortOptions, $sort) ?>
+                </select>
+            </div>
+        </div>
+    </details>
 </form>
 
 <?php if ($staff) : ?>

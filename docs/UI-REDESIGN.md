@@ -1,4 +1,4 @@
-# ResolveIT — UI Redesign: Logo, Sign-In Page, Color System
+# ResolveIT — UI Redesign: Logo, Sign-In Page, Color System, Ticket List
 
 Second design pass on the front end. The first pass (teal/warm-paper palette,
 split-screen sign-in layout) replaced the original generic blue SaaS look but
@@ -140,3 +140,54 @@ none were missed.
 | [public/login.php](../public/login.php) | Removed tagline; added field icons and button arrow |
 | [public/partials/header.php](../public/partials/header.php) | Logo now uses `logo_mark()` |
 | [public/assets/style.css](../public/assets/style.css) | Full color re-theme, tightened radii, `.field-icon` rules, button gradient, `.auth-card` accent border |
+
+## 6. Logo size, and decluttering the ticket list
+
+Two follow-up rounds after Jordan actually looked at the result.
+
+**Logo too small.** The badge was hard to read the glyph detail on. Sizes
+roughly doubled: sidebar badge 34px → 52px (icon 20px → 44px), sign-in page
+badge 42px → 76px (icon 24px → 64px), wordmark font-size scaled up to match
+on both (`public/assets/style.css`).
+
+**"All Tickets" page felt cluttered.** Before any tickets are even visible,
+the page showed: 9 status chips (6 of them reading "0" at the moment),
+a filter form with all 6 dropdown fields always expanded, and a bulk-action
+bar with an "Apply to selected" button always visible even with nothing
+selected. Three rounds of "always-on" chrome stacked above the actual data.
+Fixes, all in [`public/tickets.php`](../public/tickets.php) +
+[`style.css`](../public/assets/style.css), no behavior removed:
+
+- **Bulk-action bar now hides until something is selected.** The JS
+  (`app.js`) already toggled a `.has-selection` class on the bar as
+  checkboxes changed — it just wasn't being used for visibility, only for
+  color. One CSS rule (`.bulk-bar:not(.has-selection) { display: none; }`)
+  was enough; no JS change needed.
+- **Dropdown filters (Status/Priority/Category/Assigned to/Organization/Sort)
+  collapsed into a native `<details>` ("More filters"), closed by default.**
+  It auto-opens (`open` attribute, server-rendered) when one of those
+  filters is already active via the URL, so an admin who arrives with
+  `?status=3` set sees why the list is filtered instead of it being hidden.
+  Only the free-text search field stays visible at all times, since it's the
+  one filter without a `data-autosubmit` dropdown shortcut. Sort was moved
+  in here too since it duplicates the ticket table's clickable column
+  headers — it's a rarely-needed secondary control, not a primary one.
+- **Zero-count quick-view chips (e.g. "Unassigned 0") visually recede**
+  (`.chip-zero`: 50% opacity, dashed border, full opacity on hover) instead
+  of competing equally with chips that actually have something to show.
+  A chip that's currently selected never gets this treatment even at zero,
+  since you're deliberately looking at that (empty) view.
+
+No markup was deleted — every field and control is still reachable, just
+not fighting for attention when it isn't relevant. Verified
+`tests/check-local.ps1` still finds `id="bulk-form"` unconditionally in the
+server-rendered HTML (visibility is CSS-only, the test checks raw HTML text)
+and the Status/Priority dropdown `<select>` elements still submit via GET
+query params the same way regardless of whether `<details>` is open, so
+none of the existing filter/bulk-update tests needed changes.
+
+| Check | Result |
+|---|---|
+| `phpcs` (`public/tickets.php`) | 0 errors, 0 warnings |
+| `tests/check-local.ps1` | 137 / 137 pass |
+| Manual pass | checkbox → bulk bar appears/disappears correctly; "More filters" expands; verified at desktop and mobile width |

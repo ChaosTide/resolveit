@@ -49,6 +49,8 @@ p { margin: 0 0 .75rem; }
 .due-past { color: var(--danger); font-weight: 700; }
 .list-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .75rem; }
 .list-toolbar .result-count { margin: 0; }
+/* Hidden until a ticket is checked -- app.js toggles has-selection as checkboxes change. */
+.bulk-bar:not(.has-selection) { display: none; }
 .bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .75rem 1rem; }
 .bulk-bar select { width: auto; min-width: 190px; padding: .45rem .6rem; }
 .bulk-bar button { margin-top: 0; }
@@ -258,16 +260,34 @@ td form button { margin-top: 0; }
 .presets a { margin-right: 1rem; font-weight: 500; }
 
 /* Filter bar on the ticket list */
-.filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
+.filters { display: flex; flex-direction: column; gap: .1rem; }
+.filter-row { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; padding: .1rem 0; }
 .filters .filter { display: flex; flex-direction: column; min-width: 140px; flex: 1 1 140px; max-width: 230px; }
 .filters .filter.wide { flex: 2.5 1 220px; min-width: 220px; max-width: none; }
 .filters label { margin: 0 0 .3rem; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
 .filters button, .filters .button { margin-top: 0; }
+
+/* "More filters" is collapsed unless one of its dropdowns is already active (server-rendered
+   open attribute), so the common case -- just the search box -- stays compact. */
+.filter-more { border-top: 1px solid var(--border); margin-top: .6rem; }
+.filter-more summary { cursor: pointer; padding: .6rem 0; font-weight: 600; font-size: .85rem;
+    color: var(--text-muted); list-style: none; display: flex; align-items: center; gap: .45rem; }
+.filter-more summary::-webkit-details-marker { display: none; }
+.filter-more summary::before { content: "\25b8"; font-size: .7rem; transition: transform .12s ease; }
+.filter-more[open] summary::before { transform: rotate(90deg); }
+.filter-more summary:hover { color: var(--text); }
+.filter-more summary .count { background: var(--primary); color: #fff; border-radius: 999px; padding: .05rem .55rem;
+    font-size: .72rem; font-weight: 700; font-family: var(--font-mono); }
+.filter-more .filter-row { padding-bottom: .5rem; }
+
 .quick-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
 .chip { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .75rem; border-radius: 999px; border: 1px solid var(--border-strong); background: #fff; color: var(--text); font-size: .85rem; font-weight: 500; }
 .chip:hover { border-color: var(--primary); text-decoration: none; }
 .chip[aria-current="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
 .chip .count { font-weight: 700; font-family: var(--font-mono); }
+/* Zero-count views recede so the chips with something to show win the eye first. */
+.chip-zero { opacity: .5; border-style: dashed; }
+.chip-zero:hover { opacity: 1; }
 
 /* ---------- Tables ---------- */
 table { width: 100%; border-collapse: collapse; background: var(--surface); }
