@@ -336,8 +336,10 @@ tr[data-href] { cursor: pointer; }
 .ticket-table .requester-col { max-width: 200px; }
 .ticket-sub { display: block; font-size: .8rem; color: var(--text-muted); margin-top: .1rem; }
 .person { display: inline-flex; align-items: center; gap: .45rem; min-width: 0; }
-.empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); }
-.empty-state .icon { width: 36px; height: 36px; color: var(--border-strong); margin-bottom: .5rem; }
+.empty-state { text-align: center; padding: 2.75rem 1.5rem; color: var(--text-muted); }
+.empty-icon { display: inline-grid; place-items: center; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--primary-soft); margin-bottom: 1rem; }
+.empty-icon .icon { width: 26px; height: 26px; color: var(--primary); }
 .num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 .bar-cell { width: 45%; }
 .bar { display: block; height: .6rem; min-width: 2px; background: linear-gradient(90deg, var(--sidebar-accent), var(--primary)); border-radius: 999px; }

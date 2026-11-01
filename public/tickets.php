@@ -325,7 +325,9 @@ require __DIR__ . '/partials/header.php';
     </div>
     <?php if ($split) : ?>
     <aside class="split-pane card" id="split-pane" aria-live="polite" data-split-pane>
-        <div class="empty-state"><?= icon('tickets') ?><p>Select a ticket to see it here.</p></div>
+        <div class="empty-state">
+            <span class="empty-icon"><?= icon('tickets') ?></span><p>Select a ticket to see it here.</p>
+        </div>
     </aside>
     <?php endif; ?>
 </div>

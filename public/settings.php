@@ -287,7 +287,11 @@ require __DIR__ . '/partials/header.php';
         </tr>
     <?php endforeach; ?>
     <?php if (!$orgs) : ?>
-        <tr><td colspan="5"><div class="empty-state"><?= icon('users') ?><p>No organizations yet.</p></div></td></tr>
+        <tr><td colspan="5">
+            <div class="empty-state">
+                <span class="empty-icon"><?= icon('users') ?></span><p>No organizations yet.</p>
+            </div>
+        </td></tr>
     <?php endif; ?>
     </tbody>
 </table>

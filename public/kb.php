@@ -72,7 +72,7 @@ require __DIR__ . '/partials/header.php';
     </a>
 <?php endforeach; ?>
 <?php if (!$articles) : ?>
-    <div class="card empty-state"><?= icon('book') ?><p><?= $emptyText ?></p></div>
+    <div class="card empty-state"><span class="empty-icon"><?= icon('book') ?></span><p><?= $emptyText ?></p></div>
 <?php endif; ?>
 </div>
 <?php require __DIR__ . '/partials/footer.php'; ?>

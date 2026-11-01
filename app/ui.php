@@ -187,8 +187,8 @@ function ticket_table(array $tickets, bool $staff, string $emptyText, bool $bulk
     }
     if (!$tickets) {
         $columns = ($staff ? 8 : 6) + ($bulk ? 1 : 0);
-        $html .= '<tr><td colspan="' . $columns . '"><div class="empty-state">' . icon('inbox')
-            . '<p>' . e($emptyText) . '</p></div></td></tr>';
+        $html .= '<tr><td colspan="' . $columns . '"><div class="empty-state"><span class="empty-icon">'
+            . icon('inbox') . '</span><p>' . e($emptyText) . '</p></div></td></tr>';
     }
     return $html . '</tbody></table></div>';
 }
