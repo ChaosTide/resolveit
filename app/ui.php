@@ -133,8 +133,6 @@ function icon(string $name): string
             . '<rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
         'tickets' => '<path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5'
             . 'a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z"/><path d="M13 5v2M13 11v2M13 17v2"/>',
-        'network' => '<path d="M2 12h3"/><rect x="5" y="7" width="12" height="10" rx="1.5"/>'
-            . '<path d="M17 9.5h4M17 12h4M17 14.5h4"/>',
         'plus' => '<path d="M12 5v14M5 12h14"/>',
         'users' => '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/>'
             . '<path d="M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>',
@@ -165,6 +163,13 @@ function icon(string $name): string
     ];
     return '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
         . ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
+}
+
+/** The brand mark (public/assets/logo-mark.png), cache-busted the same way as style.css/app.js. */
+function logo_mark(): string
+{
+    $mtime = filemtime(__DIR__ . '/../public/assets/logo-mark.png');
+    return '<img class="icon" src="assets/logo-mark.png?v=' . $mtime . '" alt="" width="24" height="24">';
 }
 
 /**

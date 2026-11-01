@@ -12,19 +12,30 @@ The brand mark was `icon('tickets')` — a ticket-stub glyph (rounded
 rectangle with two notched edges and a perforation line) reused from the
 ticket-list UI. It is still used there; it just isn't a logo.
 
-Added a dedicated `icon('network')` to the icon set in
-[`app/ui.php`](../app/ui.php) — a short cable running into a connector body
-with three contact prongs, drawn in the same 24x24 stroke style as every
-other icon in the set (no icon library; every glyph in this app is a
-hand-written SVG path). First attempt drew the retention clip as a rounded
-tab, which at 20-24px read as a camera lens, not a connector — simplified to
-a plain plug-with-prongs silhouette, which is unambiguous at icon size:
+First attempt: a hand-drawn `icon('network')` SVG added to the existing
+stroke-icon set (a cable running into a connector with contact prongs).
+That got replaced in the same pass — Jordan supplied the actual artwork to
+use (a server rack + wifi router glyph on a rounded orange square) instead.
+Since it's a real piece of artwork rather than a simple stroke icon, it's
+handled differently from the rest of the icon system:
 
-```
-'network' => cable stub + rounded-rect body + 3 horizontal prongs
-    exiting the body's right edge, no latch detail (cut for legibility
-    at small sizes)
-```
+- Source image cropped to just the icon square (`scripts`/one-off, not
+  committed — the crop and background removal were done once, locally, with
+  Pillow) and chroma-keyed: alpha is set by each pixel's color distance from
+  the two background colors (the orange fill and the surrounding black), so
+  the white line art and the small cyan status-light dots both survive as
+  transparent-background art instead of being flattened to a single color.
+  Saved as [`public/assets/logo-mark.png`](../public/assets/logo-mark.png)
+  (128x128, ~19KB).
+- The existing `.logo` badge (the copper gradient rounded square already
+  built for this app) still supplies the colored background and sizing —
+  the PNG only carries the white/cyan glyph on transparency, so it drops
+  into the same badge the hand-drawn icon used to sit in, at both sizes
+  (20px sidebar, 24px sign-in page) with no CSS changes needed.
+- New `logo_mark()` helper in [`app/ui.php`](../app/ui.php) emits the
+  `<img>` tag, cache-busted with `filemtime()` the same way
+  `style.css`/`app.js` already are in `header.php`.
+- `icon('network')` was removed again since nothing calls it anymore.
 
 Swapped into the two places that are actually "the logo" — the sign-in
 page brand mark and the sidebar header — via
@@ -122,7 +133,8 @@ none were missed.
 
 | File | Change |
 |---|---|
-| [app/ui.php](../app/ui.php) | Added `network`, `mail`, `lock`, `arrow-right` icons |
+| [app/ui.php](../app/ui.php) | Added `mail`, `lock`, `arrow-right` icons and the `logo_mark()` helper |
+| [public/assets/logo-mark.png](../public/assets/logo-mark.png) | New — the supplied server-rack/router artwork, background removed |
 | [public/login.php](../public/login.php) | Removed tagline; added field icons and button arrow |
-| [public/partials/header.php](../public/partials/header.php) | Logo now uses `icon('network')` |
+| [public/partials/header.php](../public/partials/header.php) | Logo now uses `logo_mark()` |
 | [public/assets/style.css](../public/assets/style.css) | Full color re-theme, tightened radii, `.field-icon` rules, button gradient, `.auth-card` accent border |
