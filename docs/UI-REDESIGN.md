@@ -320,3 +320,50 @@ specific problems fixed above (identical-tile walls, repeated loud buttons,
 a stale-color bug). They weren't reviewed as closely as the pages above —
 worth a pass if more of the same "looks generic" feedback is about one of
 them specifically.
+
+## 9. The sign-in page, properly this time
+
+Three earlier passes on this page (sections 1–2, and the size bump) kept
+the same split-screen shape — a dark panel with marketing copy on the
+left, a light panel with the form on the right — and only ever changed its
+color and content. After a fourth "looks like AI slop," the shape itself
+was the problem, not the execution of it: that split-screen-plus-tagline
+layout is what most generated SaaS auth pages look like, regardless of
+palette. Went and looked at real references (Dribbble "login page"
+results) instead of guessing again, and picked the pattern a few of the
+strongest real shots use: **one centered card, nothing else.**
+
+It's also a better fit for what this page is. "Log a ticket in seconds!
+SLA-backed response times!" is copy written to convince a stranger to sign
+up — this is a daily sign-in for people who already use the tool and don't
+need to be sold on it. Cut entirely, not just restyled.
+
+**What changed** (`public/partials/header.php`, `footer.php`,
+`style.css`): the `.auth-brand` side panel, `.auth-tagline`, and
+`.auth-features` are gone. The dot-grid texture and copper→cyan glow
+(both kept — they were good) now cover the *whole* page instead of just
+the left half. Logo + wordmark moved to a small header lockup sitting
+above the card instead of a hero inside a separate panel.
+
+**Two real bugs, not just follow-up polish** — caught by actually looking
+at the result instead of assuming the refactor was safe:
+
+1. The new full-page background set `color: #fff` for the brand lockup
+   and footer text. That's correct for them, but color inherits, and it
+   cascaded straight into the white card underneath — "Sign in" and the
+   field labels rendered white-on-white, invisible. One line fixes it:
+   `.auth-main { color: var(--text); }` resets it back for everything
+   inside the card.
+2. At mobile width the card was cut off on the right with no way to
+   scroll to it. The glow blob's `right: -160px` was overflowing the
+   page by exactly 160px, and `overflow: hidden` on `<body>` (`.auth-layout`
+   is the `<body>` tag) didn't stop `document.documentElement.scrollWidth`
+   from growing past `clientWidth` — confirmed via a direct JS check, not
+   a guess. Fixed with `html { overflow-x: hidden }`; re-checked that
+   `scrollWidth === clientWidth` afterward.
+
+| Check | Result |
+|---|---|
+| `phpcs` (`header.php`, `footer.php`) | 0 errors, 0 warnings |
+| `tests/check-local.ps1` | 137 / 137 pass |
+| Manual pass | desktop (full page, no scroll); mobile 375px (confirmed `scrollWidth === clientWidth` via JS, not just visual check) |
