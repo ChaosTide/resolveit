@@ -21,16 +21,9 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
 </head>
 <?php if (!$currentUser) : ?>
 <body class="auth-layout">
-<header class="auth-brand">
-    <div class="brand-mark"><span class="logo" aria-hidden="true"><?= logo_mark() ?></span> ResolveIT</div>
-    <p class="auth-tagline">IT support that actually gets back to you.</p>
-    <div class="auth-features">
-        <span class="auth-feature"><?= icon('tickets') ?> Log a ticket in seconds</span>
-        <span class="auth-feature"><?= icon('clock') ?> SLA-backed response times</span>
-        <span class="auth-feature"><?= icon('check') ?> Tracked through to resolution</span>
-    </div>
-</header>
-<main class="auth-main">
+<div class="auth-center">
+    <div class="auth-brand-mark"><span class="logo" aria-hidden="true"><?= logo_mark() ?></span> ResolveIT</div>
+    <main class="auth-main">
 <?php else : ?>
 <body class="app-layout">
 <a class="skip-link" href="#content">Skip to content</a>

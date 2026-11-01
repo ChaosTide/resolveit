@@ -3,7 +3,8 @@
     </main>
 </div>
 <?php else : ?>
-</main>
+    </main>
+</div>
 <footer class="auth-footer">ResolveIT &middot; CTS 4911 capstone project</footer>
 <?php endif; ?>
 </body>
