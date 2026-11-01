@@ -28,6 +28,7 @@
     --shadow-lg: 0 20px 45px -14px rgba(60, 28, 12, .35), 0 8px 18px -10px rgba(60, 28, 12, .2);
     --font-sans: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui,
         -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
     --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
     font-family: var(--font-sans);
     font-size: 15px;
@@ -41,7 +42,10 @@ body { margin: 0; min-height: 100vh; }
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3 { line-height: 1.25; margin: 0 0 .75rem; font-family: var(--font-sans); }
-h1 { font-size: 1.55rem; font-weight: 700; letter-spacing: -.02em; }
+/* Page headlines get a serif -- one deliberate, non-system-looking choice set against an
+   otherwise all-sans UI, rather than the same typeface used for every piece of text. The
+   brand wordmark stays sans (tied to the logo mark); this is for page/section content only. */
+h1 { font-family: var(--font-serif); font-size: 1.75rem; font-weight: 700; letter-spacing: -.005em; }
 h2 { font-size: 1.05rem; font-weight: 650; }
 p { margin: 0 0 .75rem; }
 .icon { width: 18px; height: 18px; flex: none; }
