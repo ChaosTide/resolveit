@@ -152,3 +152,31 @@ legitimate request.
 | Exploit re-test after fix | `403` (was `200`) |
 | Legitimate sign-in after fix | Unchanged — still `200` with a real token |
 | Test fixtures (2 accounts, 1 ticket, login-attempt rows) | Created for this review, then deleted; nothing left behind |
+
+## 6. Follow-up review: public exposure via the Cloudflare tunnel
+
+Triggered by actually using `deploy/tunnel/start-tunnel.ps1` for the first time
+this session, which puts a real public `https://*.trycloudflare.com` URL in
+front of the local site. New attack surface — the app, not the SLA/reporting
+work — so it got the same live-request treatment as section 3, this time
+hitting the public tunnel URL instead of `127.0.0.1`.
+
+| Area checked | How | Result |
+|---|---|---|
+| Security headers over the tunnel | Live response headers from the public URL | CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` all present and unchanged from local. `Server: cloudflare` masks Apache's own header (a side benefit of the tunnel, not something this app configured). |
+| Session cookie flags | `Set-Cookie` header over the tunnel | `secure; HttpOnly; SameSite=Lax` — confirms the `SetEnvIf X-Forwarded-Proto` → `HTTPS=on` trick in `cts4911.conf` actually works end-to-end through the real tunnel, not just in theory. |
+| CSRF | `POST /login.php` through the tunnel with no `csrf_token` | `403`, same as local. |
+| Auth gating | `GET /ticket.php?id=abc` through the tunnel, unauthenticated | `302` to `login.php` before the ticket-ID check ever runs — same as local, no bypass via the tunnel path. |
+| **Per-IP login lockout vs. the tunnel** | One failed login through the tunnel, then read `login_attempts.ip` directly | **This was the real question.** Every tunnel visitor reaches Apache as `127.0.0.1` (Cloudflare connects locally) — if the app trusted `REMOTE_ADDR` naively, the whole internet would share one IP bucket, and a single attacker could lock out every legitimate user through the tunnel. It doesn't: `client_ip()` in `app/auth.php` already falls back to the `CF-Connecting-IP` header (and only when the direct connection is loopback, i.e. only in exactly this scenario). Confirmed live — the attempt recorded a real external IP, not `127.0.0.1`. This logic predates this session; it was a relief to find it already correct rather than something to fix under time pressure. |
+| SQL Server exposure | N/A — tunnel config only forwards `http://127.0.0.1:8080` | SQL Server is not tunneled or reachable externally; the tunnel can only ever reach the one port it's pointed at. |
+| `Strict-Transport-Security` | Compared to `deploy/docker/apache-cts4911.conf`, which already sets it (that config is always HTTPS, via Azure) | **Gap found**: the native `deploy/apache/cts4911.conf` had no HSTS header, presumably because local access is normally plain HTTP. Added it anyway — browsers only honor `Strict-Transport-Security` on a response actually served over HTTPS, so it's inert over local HTTP and only takes effect on the tunnel's real HTTPS path. Required an Apache restart to pick up (no graceful-reload path for this non-service console install; stopped and restarted `httpd.exe`). Verified present over both local HTTP and the tunnel afterward. |
+
+No new vulnerability found beyond the one header gap. The thing most worth
+recording here isn't a bug — it's that the IP-trust logic for exactly this
+scenario (tunneled traffic that would otherwise look like one shared IP) was
+already built correctly before there was any reason to exercise it.
+
+| Check | Result |
+|---|---|
+| `tests/check-local.ps1` | 137 / 137 pass (after the Apache restart) |
+| Test data (one `login_attempts` row for a non-existent test email) | Deleted after the check |
