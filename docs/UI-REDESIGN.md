@@ -19,19 +19,21 @@ use (a server rack + wifi router glyph on a rounded orange square) instead.
 Since it's a real piece of artwork rather than a simple stroke icon, it's
 handled differently from the rest of the icon system:
 
-- Source image cropped to just the icon square (`scripts`/one-off, not
-  committed — the crop and background removal were done once, locally, with
-  Pillow) and chroma-keyed: alpha is set by each pixel's color distance from
-  the two background colors (the orange fill and the surrounding black), so
-  the white line art and the small cyan status-light dots both survive as
-  transparent-background art instead of being flattened to a single color.
-  Saved as [`public/assets/logo-mark.png`](../public/assets/logo-mark.png)
-  (128x128, ~19KB).
-- The existing `.logo` badge (the copper gradient rounded square already
-  built for this app) still supplies the colored background and sizing —
-  the PNG only carries the white/cyan glyph on transparency, so it drops
-  into the same badge the hand-drawn icon used to sit in, at both sizes
-  (20px sidebar, 24px sign-in page) with no CSS changes needed.
+- Source image cropped to just the icon square (one-off local processing
+  with Pillow, not committed as a script) and the surrounding banner
+  background keyed out by color distance, leaving the badge's own flat
+  orange fill, white line art, and cyan status-light dots untouched and
+  intact — first attempt re-extracted just the white/cyan glyph onto this
+  app's own copper gradient badge, which technically worked but wasn't
+  what was asked for ("I want this only, not your slop"); this version
+  uses the supplied square exactly as given, only with its rounded
+  corners cut to transparent so it composites cleanly onto either the
+  sidebar or the sign-in panel. Saved as
+  [`public/assets/logo-mark.png`](../public/assets/logo-mark.png)
+  (256x256, ~30KB).
+- The existing `.logo` div still supplies sizing/shadow; its own gradient
+  background is now irrelevant since the image is opaque everywhere
+  except the transparent corner cutouts.
 - New `logo_mark()` helper in [`app/ui.php`](../app/ui.php) emits the
   `<img>` tag, cache-busted with `filemtime()` the same way
   `style.css`/`app.js` already are in `header.php`.
