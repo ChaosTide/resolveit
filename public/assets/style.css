@@ -95,7 +95,7 @@ p { margin: 0 0 .75rem; }
 /* ---------- App shell ---------- */
 .app-layout { display: grid; grid-template-columns: 250px 1fr; }
 .sidebar { background: var(--sidebar); color: var(--sidebar-text); min-height: 100vh; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 1rem .75rem; overflow-y: auto; }
-.brand { display: flex; align-items: center; gap: .7rem; color: #fff; font-weight: 700; font-size: 1.3rem; padding: .5rem .6rem 1.4rem; }
+.brand { display: flex; align-items: center; gap: .7rem; color: #fff; font-family: var(--font-serif); font-weight: 700; font-size: 1.3rem; padding: .5rem .6rem 1.4rem; }
 .brand:hover { text-decoration: none; }
 .logo { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 15px; background: linear-gradient(155deg, #b2560f, #7c2d12 75%); color: #fff4e4; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 4px 10px -2px rgba(0, 0, 0, .4); flex: none; }
 .logo .icon { width: 44px; height: 44px; }
