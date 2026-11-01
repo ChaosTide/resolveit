@@ -191,3 +191,43 @@ none of the existing filter/bulk-update tests needed changes.
 | `phpcs` (`public/tickets.php`) | 0 errors, 0 warnings |
 | `tests/check-local.ps1` | 137 / 137 pass |
 | Manual pass | checkbox → bulk bar appears/disappears correctly; "More filters" expands; verified at desktop and mobile width |
+
+## 7. Dashboard: breaking up the identical-tile wall
+
+The staff dashboard's KPI grid was 8 cards, all the exact same shape (icon
+chip top-right, big number, label, note), differing only by accent color —
+a very recognizable "generated dashboard" pattern. The underlying 8 numbers
+(`dashboard.php`'s staff query) didn't need to change, just how they're
+grouped and weighted.
+
+Added `stat_group()` to [`app/ui.php`](../app/ui.php) alongside the existing
+`kpi_tile()` — one card that holds several related mini-stats (label, value,
+tone, href each) instead of each needing a full identical tile. Regrouped
+the 8 numbers by what they mean, not just rendered them in query order:
+
+- **Open tickets** and **Unassigned** stay as the two full-size hero tiles —
+  overall volume and the thing most needing triage.
+- **"At risk"** — Overdue, Due in 4h, Past due date: three different flavors
+  of "this is time-sensitive," now one card with three colored mini-stats
+  instead of three separate same-shaped boxes.
+- **"Your day"** — My queue, Resolved today, Waiting on requester: the more
+  personal/ambient numbers, grouped the same way.
+
+`.stat-group` spans two grid columns (`grid-column: span 2`) in the existing
+`.grid`, so it naturally sits wider than the two hero tiles rather than
+being force-fit into the same box size — that size difference is what
+actually breaks the "wall of identical cards" look. Each mini-stat is still
+its own link to the matching filtered ticket view (`tickets.php?view=...`),
+so no functionality was lost, only the shape changed. Mobile (≤640px) stacks
+each group's mini-stats into a single column with a top divider instead of
+a cramped 2-up grid, after a first pass caused labels like "Resolved today"
+to wrap mid-word.
+
+The employee-facing dashboard (4 simple tiles: Open/Resolved/Closed/All) was
+left alone — at that size it doesn't show the same repetitive-wall problem.
+
+| Check | Result |
+|---|---|
+| `phpcs` (`app/ui.php`, `public/dashboard.php`) | 0 errors, 0 warnings |
+| `tests/check-local.ps1` | 137 / 137 pass |
+| Manual pass | desktop width (single row, 4 cards) and mobile width (stacked, no text wrapping) |

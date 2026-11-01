@@ -65,7 +65,7 @@ $subtitle = $staff
 </div>
 
 <?php if ($staff) : ?>
-<div class="grid">
+<div class="grid dashboard-grid">
     <?= kpi_tile('Open tickets', $kpi['unresolved'], 'inbox', 'primary', 'tickets.php?view=open', 'Not yet resolved') ?>
     <?= kpi_tile(
         'Unassigned',
@@ -75,40 +75,28 @@ $subtitle = $staff
         'tickets.php?view=unassigned',
         'Waiting for a technician'
     ) ?>
-    <?= kpi_tile('Overdue', $kpi['overdue'], 'alert', 'danger', 'tickets.php?view=overdue', 'Past their SLA target') ?>
-    <?= kpi_tile(
-        'Due in 4 hours',
-        $kpi['due_soon'],
-        'clock',
-        'warning',
-        'tickets.php?view=open&sort=due',
-        'SLA deadline approaching'
-    ) ?>
-    <?= kpi_tile('My queue', $kpi['mine'], 'tickets', 'primary', 'tickets.php?view=mine', 'Assigned to you') ?>
-    <?= kpi_tile(
-        'Resolved today',
-        $kpi['resolved_today'],
-        'check',
-        'success',
-        'tickets.php?view=resolved',
-        'Nice work'
-    ) ?>
-    <?= kpi_tile(
-        'Waiting on requester',
-        $kpi['waiting'],
-        'clock',
-        'violet',
-        'tickets.php?view=waiting',
-        'IT replied last'
-    ) ?>
-    <?= kpi_tile(
-        'Past due date',
-        $kpi['past_due'],
-        'alert',
-        'danger',
-        'tickets.php?view=pastdue',
-        'Staff-set due date passed'
-    ) ?>
+    <?= stat_group('At risk', 'alert', [
+        ['label' => 'Overdue', 'value' => $kpi['overdue'], 'tone' => 'danger', 'href' => 'tickets.php?view=overdue'],
+        [
+            'label' => 'Due in 4h', 'value' => $kpi['due_soon'], 'tone' => 'warning',
+            'href' => 'tickets.php?view=open&sort=due',
+        ],
+        [
+            'label' => 'Past due date', 'value' => $kpi['past_due'], 'tone' => 'danger',
+            'href' => 'tickets.php?view=pastdue',
+        ],
+    ]) ?>
+    <?= stat_group('Your day', 'user', [
+        ['label' => 'My queue', 'value' => $kpi['mine'], 'tone' => 'primary', 'href' => 'tickets.php?view=mine'],
+        [
+            'label' => 'Resolved today', 'value' => $kpi['resolved_today'], 'tone' => 'success',
+            'href' => 'tickets.php?view=resolved',
+        ],
+        [
+            'label' => 'Waiting on requester', 'value' => $kpi['waiting'], 'tone' => 'violet',
+            'href' => 'tickets.php?view=waiting',
+        ],
+    ]) ?>
 </div>
 
 <section class="card flush">

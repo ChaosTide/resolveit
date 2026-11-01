@@ -200,6 +200,38 @@ p { margin: 0 0 .75rem; }
 .stat.tone-violet .stat-icon { background: var(--violet-soft); color: var(--violet); }
 a.stat { color: inherit; transition: transform .12s, box-shadow .12s; }
 a.stat:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+
+/* A card grouping several related mini-stats (stat_group() in app/ui.php) instead of each
+   needing its own full-size tile -- the dashboard's two riskiest/busiest clusters use this
+   so the grid isn't eight identically-shaped boxes. */
+.dashboard-grid { align-items: stretch; }
+.stat-group { grid-column: span 2; display: flex; flex-direction: column; }
+.stat-group-header { display: flex; align-items: center; gap: .5rem; font-weight: 600; font-size: .8rem;
+    text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: .85rem; }
+.stat-group-header .icon { width: 16px; height: 16px; }
+.stat-group-row { display: flex; gap: 1.5rem; flex: 1; align-items: flex-end; }
+.stat-mini { display: flex; flex-direction: column; gap: .15rem; color: inherit; flex: 1; min-width: 0;
+    border-left: 3px solid var(--border); padding-left: .7rem; }
+.stat-mini:hover { text-decoration: none; border-left-color: var(--primary); }
+.stat-mini strong { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; font-family: var(--font-mono); }
+.stat-mini span { font-size: .78rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.stat-mini.tone-danger:hover { border-left-color: var(--danger); }
+.stat-mini.tone-danger strong { color: var(--danger); }
+.stat-mini.tone-warning:hover { border-left-color: var(--warning); }
+.stat-mini.tone-warning strong { color: var(--warning); }
+.stat-mini.tone-success:hover { border-left-color: var(--success); }
+.stat-mini.tone-success strong { color: var(--success); }
+.stat-mini.tone-violet:hover { border-left-color: var(--violet); }
+.stat-mini.tone-violet strong { color: var(--violet); }
+@media (max-width: 640px) {
+    .stat-group { grid-column: span 1; }
+    .stat-group-row { flex-direction: column; gap: .85rem; }
+    .stat-mini { border-left: none; border-top: 3px solid var(--border); padding-left: 0; padding-top: .5rem; }
+    .stat-mini.tone-danger:hover { border-top-color: var(--danger); border-left-color: transparent; }
+    .stat-mini.tone-warning:hover { border-top-color: var(--warning); border-left-color: transparent; }
+    .stat-mini.tone-success:hover { border-top-color: var(--success); border-left-color: transparent; }
+    .stat-mini.tone-violet:hover { border-top-color: var(--violet); border-left-color: transparent; }
+}
 .alert-stat { border-color: #fecaca; }
 .alert-stat strong { color: var(--danger); }
 

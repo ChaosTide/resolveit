@@ -333,6 +333,22 @@ function kpi_tile(string $label, int $value, string $iconName, string $tone, str
         . '<span class="stat-note">' . e($note) . '</span></a>';
 }
 
+/**
+ * One dashboard card grouping several related counts (e.g. the different ways a ticket can be
+ * at risk) that would otherwise each need their own identically-shaped kpi_tile(). $items is a
+ * list of ['label' => , 'value' => , 'tone' => , 'href' => ].
+ */
+function stat_group(string $title, string $iconName, array $items): string
+{
+    $html = '<div class="card stat-group"><div class="stat-group-header">' . icon($iconName)
+        . '<span>' . e($title) . '</span></div><div class="stat-group-row">';
+    foreach ($items as $item) {
+        $html .= '<a class="stat-mini tone-' . $item['tone'] . '" href="' . e($item['href']) . '">'
+            . '<strong>' . $item['value'] . '</strong><span>' . e($item['label']) . '</span></a>';
+    }
+    return $html . '</div></div>';
+}
+
 /** One report table from run_report() (app/reports.php), with an optional bar-chart column. */
 function render_report(array $report): void
 {
