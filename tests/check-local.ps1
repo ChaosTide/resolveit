@@ -217,7 +217,7 @@ Check 'Unassigned view' ((Request $tech 'tickets.php?view=unassigned').Content.C
 Check 'Employee search stays within own tickets' (-not (Request $employee ("tickets.php?q=" + [uri]::EscapeDataString("QA access $tag"))).Content.Contains("id=$other`">#$other</a>"))
 Check 'Bad filter values are ignored' ((Request $tech "tickets.php?status=abc&priority=-1&page=999&sort=drop").StatusCode -eq 200)
 $r=Request $admin 'reports.php?from=2020-01-01&to=2020-01-31'
-Check 'Date range filter applied' ($r.Content.Contains('Jan 1, 2020') -and $r.Content.Contains('Created in period</span><strong>0<'))
+Check 'Date range filter applied' ($r.Content.Contains('Jan 1, 2020') -and $r.Content.Contains('<strong>0</strong><span>Created</span>'))
 Check 'Invalid date falls back safely' ((Request $admin 'reports.php?from=not-a-date').Content.Contains('Dates must look like'))
 $range='from='+(Get-Date).AddDays(-2).ToString('yyyy-MM-dd')+'&to='+(Get-Date -Format yyyy-MM-dd)
 $r=Request $admin "reports.php?$range&export=tickets"

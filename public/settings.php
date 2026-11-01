@@ -215,7 +215,7 @@ require __DIR__ . '/partials/header.php';
                     <?= action_fields('category_rename', (int) $category['id']) ?>
                     <input name="name" maxlength="80" value="<?= e($category['name']) ?>"
                         aria-label="Category name" required>
-                    <button>Rename</button>
+                    <button class="secondary small">Rename</button>
                 </form>
             </td>
             <td class="num"><?= (int) $category['tickets'] ?></td>
@@ -268,7 +268,7 @@ require __DIR__ . '/partials/header.php';
                     <?= action_fields('org_rename', (int) $org['id']) ?>
                     <input name="name" maxlength="100" value="<?= e($org['name']) ?>"
                         aria-label="Organization name" required>
-                    <button>Rename</button>
+                    <button class="secondary small">Rename</button>
                 </form>
             </td>
             <td class="num"><?= (int) $org['members'] ?></td>
@@ -318,7 +318,7 @@ require __DIR__ . '/partials/header.php';
                         value="<?= (int) $priority['sla_hours'] ?>"
                         aria-label="SLA target in hours for <?= e($priority['name']) ?>" class="hours-input" required>
                     <span class="meta">h</span>
-                    <button>Save</button>
+                    <button class="secondary small">Save</button>
                 </form>
             </td>
             <td class="num"><?= (int) $priority['tickets'] ?></td>

@@ -40,18 +40,20 @@ require __DIR__ . '/partials/header.php';
     </div>
 </div>
 <form class="card filters" method="get" action="kb.php">
-    <div class="filter wide">
-        <label for="kb-q">Search articles</label>
-        <input id="kb-q" type="search" name="q" value="<?= e($q) ?>" placeholder="e.g. printer, password, Wi-Fi">
+    <div class="filter-row">
+        <div class="filter wide">
+            <label for="kb-q">Search articles</label>
+            <input id="kb-q" type="search" name="q" value="<?= e($q) ?>" placeholder="e.g. printer, password, Wi-Fi">
+        </div>
+        <div class="filter">
+            <label for="kb-category">Category</label>
+            <select id="kb-category" name="category" data-autosubmit>
+                <option value="">All categories</option>
+                <?= select_options(array_column($categories, 'name', 'id'), $categoryId) ?>
+            </select>
+        </div>
+        <button type="submit"><?= icon('search') ?>Search</button>
     </div>
-    <div class="filter">
-        <label for="kb-category">Category</label>
-        <select id="kb-category" name="category" data-autosubmit>
-            <option value="">All categories</option>
-            <?= select_options(array_column($categories, 'name', 'id'), $categoryId) ?>
-        </select>
-    </div>
-    <button type="submit"><?= icon('search') ?>Search</button>
 </form>
 <p class="result-count"><?= count($articles) ?> article<?= count($articles) === 1 ? '' : 's' ?></p>
 <div class="kb-list">

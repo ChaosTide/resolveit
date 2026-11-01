@@ -231,3 +231,92 @@ left alone — at that size it doesn't show the same repetitive-wall problem.
 | `phpcs` (`app/ui.php`, `public/dashboard.php`) | 0 errors, 0 warnings |
 | `tests/check-local.ps1` | 137 / 137 pass |
 | Manual pass | desktop width (single row, 4 cards) and mobile width (stacked, no text wrapping) |
+
+## 8. The rest of the app: ticket detail, reports, settings, knowledge base
+
+Same ask, applied to the other most-visited pages rather than a from-scratch
+redesign of all seventeen — Jordan wanted every page to stop looking
+generic, and a template/framework wasn't an option (the CSP is
+`default-src 'self'`, so there's no loading Bootstrap/Tailwind/an icon font
+from a CDN; every page already shares one hand-rolled CSS system). Searched
+for current ITSM/helpdesk UI patterns first instead of guessing — see
+sources below — then applied the ones that actually fit this app.
+
+**[`ticket.php`](../public/ticket.php) — the single most-used page after the
+list:**
+- The status breadcrumb ("Open › Assigned › In Progress…") was plain text
+  pills joined by a literal `›` character. Replaced with an actual
+  connected-dot stepper (`<ol class="workflow">`, a `::before` line between
+  each `<li>`), the pattern used by essentially every real ticketing tool
+  (Jira, Zendesk, Linear). Simplified the PHP at the same time — the old
+  version tracked a loop index just to decide whether to print an arrow;
+  the new one doesn't need to.
+- Conversation replies were a flat list separated by a hairline, with no
+  visual distinction between a staff reply and a requester reply beyond a
+  small text tag. Each reply is now its own rounded, padded "bubble" with a
+  background tint keyed to who wrote it (`role-staff` / `role-requester`).
+
+**[`reports.php`](../public/reports.php):** had the exact same
+identical-tile problem the dashboard did — 6 plain stat boxes in a row.
+Reused `stat_group()` (built for the dashboard, not reports-specific) to
+group "Created"/"Resolved" into one "This period" card and
+"Unresolved"/"Overdue"/"Unassigned" into one "Current backlog" card, with
+"Met SLA" staying as its own hero number since it's the page's headline
+metric. Also found and fixed a real leftover bug while in here: the report
+bar-chart fill was still `linear-gradient(90deg, #4fb7a1, ...)` — `#4fb7a1`
+is a teal from the *original* palette, before either redesign pass, that
+never got caught when the colors moved to copper. Now uses the current
+`--sidebar-accent` → `--primary` tokens. Removed `.alert-stat`, which this
+change made fully dead CSS (zero remaining references).
+
+**[`settings.php`](../public/settings.php):** every table row had its own
+full bold primary-colored "Rename"/"Save" button — five-plus identical loud
+orange buttons stacked down a column, each pulling equal visual weight
+against the one real primary action ("Add Category"). Changed per-row
+buttons to `secondary small`; left `Add Category`/`Add Organization` as the
+only bold buttons on the page, since those are the actual primary actions.
+
+**[`public/users.php`](../public/users.php):** already fine as built — quiet
+"Edit" next to a deliberately loud red "Deactivate" is the right contrast,
+left alone.
+
+**[`kb.php`](../public/kb.php):** regression, not a redesign — reusing the
+`.filters` class from the tickets-page rework (restructured in section 6 to
+stack vertically for the "More filters" `<details>`) broke this page's
+filter form, which never got the new `.filter-row` wrapper. The Search
+button rendered full-width and oversized (a flex column's default
+`align-items: stretch` stretching a lone `<button>` child to fill the
+card). Fixed by wrapping its two fields the same way `tickets.php` already
+does. Checked `search.php` too since it's the other filter-heavy page — it
+uses its own markup, untouched by the `.filters` change, no fix needed.
+
+**One test had to change.** `tests/check-local.ps1`'s date-range check
+string-matched the *exact* old reports.php markup
+(`'Created in period</span><strong>0<'`). That label doesn't exist anymore
+— it's `Created` inside the new "This period" group. Updated the assertion
+to match the new (but equivalently specific) string
+(`'<strong>0</strong><span>Created</span>'`); the behavior being tested
+(date-range filtering actually filters) didn't change, just the markup
+shape it was pinned to. Same kind of test update the original PSR-12 pass
+already made per [ENGINEERING-NOTES.md](ENGINEERING-NOTES.md) section 4.
+
+| Check | Result |
+|---|---|
+| `phpcs` (all files above) | 0 errors, 0 warnings |
+| `tests/check-local.ps1` | 137 / 137 pass (one assertion updated to match intentionally changed markup, not loosened) |
+| Manual pass | every page above checked in-browser after each change |
+
+Sources consulted for current ITSM/helpdesk UI conventions (vendor
+redesigns, not templates — nothing here was copied, CSP forbids external
+assets regardless): [ManageEngine ServiceDesk Plus Cloud redesign](https://www.manageengine.com/products/service-desk/blog/new-design-layout-and-features-the-all-new-ui-of-servicedesk-plus-cloud-is-here.html),
+[Kaseya BMS Service Desk dashboard](https://help.bms.kaseya.com/help/Content/Service%20Desk/bms-service-desk-new-service-desk-dashboard.html),
+[Frontline help desk status-band pattern](https://inventoryandhelpdeskmanagement-help.frontlineeducation.com/hc/en-us/articles/4410201806611).
+
+### Not yet touched
+
+`ticket-create.php`, `ticket-edit.php`, `user-edit.php`, `search.php`,
+`kb-article.php`, `kb-edit.php` are plain forms/detail pages without the
+specific problems fixed above (identical-tile walls, repeated loud buttons,
+a stale-color bug). They weren't reviewed as closely as the pages above —
+worth a pass if more of the same "looks generic" feedback is about one of
+them specifically.

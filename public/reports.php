@@ -84,19 +84,35 @@ require __DIR__ . '/partials/header.php';
 </p>
 </section>
 
-<div class="grid">
-    <div class="card stat"><span class="meta">Created in period</span><strong><?= $summary['created'] ?></strong></div>
-    <div class="card stat">
-        <span class="meta">Resolved (of those)</span><strong><?= $summary['resolved'] ?></strong>
+<div class="grid dashboard-grid">
+    <div class="card stat tone-primary">
+        <span class="meta">Met SLA in period</span><strong><?= $compliance ?></strong>
+        <span class="stat-note">Resolved on time, of tickets resolved or overdue</span>
     </div>
-    <div class="card stat"><span class="meta">Met SLA in period</span><strong><?= $compliance ?></strong></div>
-    <div class="card stat"><span class="meta">Unresolved now</span><strong><?= $summary['unresolved'] ?></strong></div>
-    <div class="card stat<?= $summary['overdue'] ? ' alert-stat' : '' ?>">
-        <span class="meta">Overdue now</span><strong><?= $summary['overdue'] ?></strong>
-    </div>
-    <div class="card stat">
-        <span class="meta">Unresolved &amp; unassigned</span><strong><?= $summary['unassigned'] ?></strong>
-    </div>
+    <?= stat_group('This period', 'chart', [
+        [
+            'label' => 'Created', 'value' => $summary['created'], 'tone' => 'primary',
+            'href' => '#report-status',
+        ],
+        [
+            'label' => 'Resolved', 'value' => $summary['resolved'], 'tone' => 'success',
+            'href' => '#report-status',
+        ],
+    ]) ?>
+    <?= stat_group('Current backlog', 'inbox', [
+        [
+            'label' => 'Unresolved', 'value' => $summary['unresolved'], 'tone' => 'primary',
+            'href' => 'tickets.php?view=open',
+        ],
+        [
+            'label' => 'Overdue', 'value' => $summary['overdue'], 'tone' => 'danger',
+            'href' => 'tickets.php?view=overdue',
+        ],
+        [
+            'label' => 'Unassigned', 'value' => $summary['unassigned'], 'tone' => 'violet',
+            'href' => 'tickets.php?view=unassigned',
+        ],
+    ]) ?>
 </div>
 
 <div class="report-grid">

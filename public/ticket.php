@@ -112,13 +112,13 @@ require __DIR__ . '/partials/header.php';
         <section class="card" id="conversation">
             <h2>Conversation</h2>
             <?php foreach ($notes as $note) : ?>
-                <article class="comment"><?= avatar($note['author']) ?>
+                <?php $isStaffNote = $note['role'] !== 'employee'; ?>
+                <article class="comment <?= $isStaffNote ? 'role-staff' : 'role-requester' ?>">
+                    <?= avatar($note['author']) ?>
                     <div class="comment-body">
                         <div class="comment-meta">
                             <strong><?= e($note['author']) ?></strong>
-                            <?php if ($note['role'] !== 'employee') : ?>
-                                <span class="staff-tag">IT Staff</span>
-                            <?php endif; ?>
+                            <?php if ($isStaffNote) : ?><span class="staff-tag">IT Staff</span><?php endif; ?>
                             &middot; <?= relative_time($note['created_at']) ?>
                         </div>
                         <p><?= e($note['note']) ?></p>
@@ -152,21 +152,16 @@ require __DIR__ . '/partials/header.php';
     <aside>
         <section class="card">
             <h2>Details</h2>
-            <div class="workflow" aria-label="Workflow progress">
-                <?php foreach ($workflow as $i => $step) : ?>
+            <ol class="workflow" aria-label="Workflow progress">
+                <?php foreach ($workflow as $step) : ?>
                     <?php
                     $stepOrder = (int) $step['sort_order'];
                     $ticketOrder = (int) $ticket['status_order'];
-                    if ($stepOrder < $ticketOrder) {
-                        $state = 'done';
-                    } else {
-                        $state = $stepOrder === $ticketOrder ? 'current' : '';
-                    }
+                    $state = $stepOrder < $ticketOrder ? 'done' : ($stepOrder === $ticketOrder ? 'current' : '');
                     ?>
-                    <?= $i ? '<span class="arrow">&rsaquo;</span>' : '' ?>
-                    <span class="<?= $state ?>"><?= e($step['name']) ?></span>
+                    <li class="<?= $state ?>"><span class="workflow-dot"></span><?= e($step['name']) ?></li>
                 <?php endforeach; ?>
-            </div>
+            </ol>
             <dl class="details">
                 <div><dt>Status</dt><dd data-field="status"><?= status_badge($ticket['status']) ?></dd></div>
                 <div>
