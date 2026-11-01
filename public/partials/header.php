@@ -22,7 +22,7 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
 <?php if (!$currentUser) : ?>
 <body class="auth-layout">
 <header class="auth-brand">
-    <div class="brand-mark"><span class="logo" aria-hidden="true"><?= icon('tickets') ?></span> ResolveIT</div>
+    <div class="brand-mark"><span class="logo" aria-hidden="true"><?= icon('network') ?></span> ResolveIT</div>
     <p class="auth-tagline">IT support that actually gets back to you.</p>
     <div class="auth-features">
         <span class="auth-feature"><?= icon('tickets') ?> Log a ticket in seconds</span>
@@ -36,7 +36,7 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
 <a class="skip-link" href="#content">Skip to content</a>
 <aside class="sidebar" id="sidebar">
     <a class="brand" href="index.php">
-        <span class="logo" aria-hidden="true"><?= icon('tickets') ?></span><span>ResolveIT</span>
+        <span class="logo" aria-hidden="true"><?= icon('network') ?></span><span>ResolveIT</span>
     </a>
     <nav aria-label="Main navigation">
         <a href="dashboard.php"<?= $navActive(['dashboard.php']) ?>><?= icon('dashboard') ?>Dashboard</a>

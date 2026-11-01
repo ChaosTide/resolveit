@@ -32,20 +32,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = 'Sign In';
 require __DIR__ . '/partials/header.php';
 ?>
-<section class="card">
+<section class="card auth-card">
     <h1>Sign in</h1>
-    <p class="meta">The ResolveIT IT help desk. Use the email and password your administrator gave you.</p>
     <?php foreach ($errors as $error) : ?>
         <p class="errors" role="alert"><?= e($error) ?></p>
     <?php endforeach; ?>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
         <label for="email">Email</label>
-        <input id="email" name="email" type="email" maxlength="190" autocomplete="username"
-            value="<?= e($email ?? '') ?>" required autofocus>
+        <div class="field-icon"><?= icon('mail') ?>
+            <input id="email" name="email" type="email" maxlength="190" autocomplete="username"
+                value="<?= e($email ?? '') ?>" required autofocus>
+        </div>
         <label for="password">Password</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required>
-        <button type="submit" style="width:100%">Sign In</button>
+        <div class="field-icon password-field"><?= icon('lock') ?>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" style="width:100%">Sign In<?= icon('arrow-right') ?></button>
     </form>
 </section>
 <?php require __DIR__ . '/partials/footer.php'; ?>
