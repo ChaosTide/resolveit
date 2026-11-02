@@ -364,6 +364,20 @@
             });
         }
 
+        // A link to #report-sla etc. (e.g. the reports KPI tiles, linking to a report further
+        // down the same page) should land on an already-open report, not a collapsed <details>
+        // summary. Fragment-only navigation doesn't re-fire DOMContentLoaded, so this also has
+        // to run on hashchange for a click while already on reports.php.
+        var openHashTarget = function () {
+            if (!location.hash) return;
+            var hashTarget = document.getElementById(location.hash.slice(1));
+            if (hashTarget && hashTarget.tagName === 'DETAILS') {
+                hashTarget.open = true;
+            }
+        };
+        openHashTarget();
+        window.addEventListener('hashchange', openHashTarget);
+
         enhance(document);
         live.init();
         setInterval(function () { updateSlaBadges(document); updateRelativeTimes(); }, 30000);

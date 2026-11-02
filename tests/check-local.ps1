@@ -190,7 +190,8 @@ Check 'Administrator cannot demote self' ($r.Content.Contains('You cannot change
 
 # --- Reports and Phase 4 analytics ---
 $r=Request $admin 'reports.php'
-Check 'Reports page loads with all 8 reports' ($r.StatusCode -eq 200 -and (1..8 | ForEach-Object { $r.Content.Contains("<h2>$_.") }) -notcontains $false)
+Check 'Reports page loads with all 8 reports' ($r.StatusCode -eq 200 -and (1..8 | ForEach-Object {
+    $r.Content.Contains("<span class=`"report-number`">$_</span>") }) -notcontains $false)
 # Backdate the open admin ticket past its 24h Medium target so it becomes overdue.
 sqlcmd -S $SqlServer -E -C -b -d TicketManagement -Q "UPDATE tickets SET created_at = DATEADD(hour, -30, SYSDATETIME()) WHERE id = $other" | Out-Null
 $r=Request $admin 'reports.php'

@@ -115,25 +115,24 @@ require __DIR__ . '/partials/header.php';
     ]) ?>
 </div>
 
-<div class="report-grid">
+<p class="meta"><?= count($reports) ?> reports below &mdash; click one to expand it. Each exports to CSV.</p>
+<div class="report-list">
 <?php $number = 0; ?>
 <?php foreach ($reports as $key => $report) : ?>
-    <?php
-    $number++;
-    // The SLA and due-time tables are wide, so they sit below the two-column grid.
-    if ($key === 'sla') {
-        echo '</div>';
-    }
-    ?>
-<section class="card" id="report-<?= $key ?>">
-    <div class="report-head">
-        <h2><?= $number ?>. <?= e($report['title']) ?>
-            <?php if ($report['scope'] === 'current') : ?><span class="meta">(current)</span><?php endif; ?>
-        </h2>
-        <a href="reports.php?<?= e($rangeQuery) ?>&amp;export=<?= $key ?>">CSV</a>
+    <?php $number++; ?>
+<details class="card report-card" id="report-<?= $key ?>">
+    <summary>
+        <span class="report-number"><?= $number ?></span>
+        <span class="report-title"><?= e($report['title']) ?></span>
+        <?php if ($report['scope'] === 'current') : ?><span class="meta">Current</span><?php endif; ?>
+    </summary>
+    <div class="report-body">
+        <p class="report-actions">
+            <a href="reports.php?<?= e($rangeQuery) ?>&amp;export=<?= $key ?>">Export CSV</a>
+        </p>
+        <?php render_report($report); ?>
     </div>
-    <?php render_report($report); ?>
-</section>
+</details>
 <?php endforeach; ?>
 <p class="meta">
     SLA targets are set per priority in <a href="settings.php?tab=priorities">Settings &rarr; Priorities</a>.
