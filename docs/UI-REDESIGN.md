@@ -420,3 +420,47 @@ looking right.
 | `phpcs` (`header.php`, `footer.php`) | 0 errors, 0 warnings |
 | `tests/check-local.ps1` | 137 / 137 pass |
 | Manual pass | desktop expand/collapse round-trip; sticky topbar re-verified correct after scroll (`getBoundingClientRect`, not just a screenshot); mobile expand/collapse; a second page (tickets.php) checked, not just dashboard |
+
+## 11. Reports page: 8 tables at once → a closed-by-default accordion
+
+Jordan's complaint, verbatim: "this page looks like crap there is sto much
+going on here make it more asseable here and easy to see read and
+sunstertansd" — read as too much going on, make it more accessible and
+easy to see/read/understand. The screenshot showed exactly that: all 8
+report tables (status, priority, category, workload, resolution, daily,
+SLA, due-time) rendered simultaneously below the 3 KPI cards, two of them
+(SLA compliance's 8 columns, the due-time ticket list) wide enough to need
+a hard-coded `if ($key === 'sla') { echo '</div>'; }` in the loop just to
+break them out of the 2-column `.report-grid` and give them room.
+
+**What it became:** every report is now a `<details class="card
+report-card">` — closed by default, so the page loads as a plain scannable
+list of 8 titles (same visual weight as a table of contents), each one
+opening full-width on click instead of being squeezed into a 420px grid
+column. That made the old `sla`-key special case unnecessary — deleted
+instead of carried forward, since nothing is ever mid-row anymore. Markup
+otherwise follows the `.filter-more` "More filters" disclosure already
+established on tickets.php (same triangle marker, same hover/open styling)
+rather than inventing a second accordion convention.
+
+**Real bug caught by testing the actual interaction, not just the
+markup:** the dashboard/reports KPI tiles link to anchors like
+`#report-status`, which used to just scroll to a `<section>`. Against a
+`<details>`, landing on a closed one is useless, so `app.js` opens the
+matching `<details>` on load if `location.hash` names one. First version
+only ran that check inside the existing `DOMContentLoaded` handler — looked
+right in isolation (`document.getElementById('report-sla').open` was
+`true`) until tested the way a user actually hits it: clicking a KPI tile
+*from the already-loaded reports page*. That's a same-document fragment
+navigation, which doesn't re-fire `DOMContentLoaded` in any browser, so the
+open-logic silently never ran for the one path that matters. Fixed by
+pulling the check into a named function and also binding it to
+`window.addEventListener('hashchange', ...)`, then re-verified both paths
+separately: a fresh load straight to `reports.php#report-sla`, and a click
+on the "Created" KPI tile from an already-open reports.php.
+
+| Check | Result |
+|---|---|
+| `phpcs` (`reports.php`) | 0 errors, 0 warnings |
+| `tests/check-local.ps1` | 137 / 137 pass (one assertion updated: `<h2>$_.` → `<span class="report-number">$_</span>`, matching the new markup — the behavior it checks, that all 8 numbered reports render, is unchanged) |
+| Manual pass | expand/collapse on click; fresh-load deep link opens the right report; same-page KPI-tile click opens the right report (the actual hashchange bug, not just the easy case); mobile width has no horizontal overflow (`document.documentElement.scrollWidth` checked directly, not just eyeballed); widest table (SLA compliance, 8 columns) renders full-width when expanded |
