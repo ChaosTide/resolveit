@@ -349,6 +349,13 @@
                 if (narrow.matches) {
                     sidebar.classList.toggle('open');
                 } else {
+                    // The transition is added only for the moment of this click and removed
+                    // right after -- see the .sidebar-animating rule in style.css for why.
+                    document.body.classList.add('sidebar-animating');
+                    clearTimeout(toggle._animTimer);
+                    toggle._animTimer = setTimeout(function () {
+                        document.body.classList.remove('sidebar-animating');
+                    }, 260);
                     var collapsed = document.body.classList.toggle('sidebar-collapsed');
                     try { localStorage.setItem(collapseKey, collapsed ? '1' : '0'); } catch (e) { /* storage blocked */ }
                 }
