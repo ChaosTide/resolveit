@@ -93,8 +93,13 @@ p { margin: 0 0 .75rem; }
 }
 
 /* ---------- App shell ---------- */
-.app-layout { display: grid; grid-template-columns: 250px 1fr; }
-.sidebar { background: var(--sidebar); color: var(--sidebar-text); min-height: 100vh; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 1rem .75rem; overflow-y: auto; }
+.app-layout { display: grid; grid-template-columns: 250px 1fr; transition: grid-template-columns .22s ease; }
+/* Collapsed on a wide screen: the grid column itself slides to 0 instead of the sidebar
+   overlaying content -- there's room to just give the width back, unlike on narrow screens.
+   (.app-layout is the <body> element itself, so this is one compound selector, not a descendant.) */
+.app-layout.sidebar-collapsed { grid-template-columns: 0 1fr; }
+.app-layout.sidebar-collapsed .sidebar { padding-left: 0; padding-right: 0; overflow: hidden; }
+.sidebar { background: var(--sidebar); color: var(--sidebar-text); min-height: 100vh; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 1rem .75rem; overflow-y: auto; overflow-x: hidden; }
 .brand { display: flex; align-items: center; gap: .7rem; color: #fff; font-family: var(--font-serif); font-weight: 700; font-size: 1.3rem; padding: .5rem .6rem 1.4rem; }
 .brand:hover { text-decoration: none; }
 .logo { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 15px; background: linear-gradient(155deg, #b2560f, #7c2d12 75%); color: #fff4e4; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 4px 10px -2px rgba(0, 0, 0, .4); flex: none; }
@@ -116,7 +121,7 @@ p { margin: 0 0 .75rem; }
 .role-tag { color: var(--text-muted); font-size: .78rem; }
 .icon-button { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid transparent; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; margin: 0; transition: background-color .12s, color .12s; }
 .icon-button:hover { background: var(--surface-muted); border-color: var(--border); color: var(--text); text-decoration: none; box-shadow: none; }
-.menu-toggle { display: none; }
+.menu-toggle { display: inline-grid; margin-right: .25rem; }
 .content { padding: 1.75rem; max-width: 1280px; width: 100%; }
 
 /* ---------- Sign-in layout: one centered card, not a split marketing panel -----------
@@ -482,7 +487,6 @@ tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
     .app-layout { grid-template-columns: 1fr; }
     .sidebar { position: fixed; left: 0; top: 0; z-index: 40; width: 260px; transform: translateX(-100%); transition: transform .2s; box-shadow: var(--shadow-lg); }
     .sidebar.open { transform: none; }
-    .menu-toggle { display: inline-grid; }
     .topbar { padding: .6rem 1rem; }
     .user-meta { display: none; }
     .content { padding: 1.1rem 1rem; }

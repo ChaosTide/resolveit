@@ -325,18 +325,39 @@
     });
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Mobile sidebar.
+        // Sidebar: slides in/out as an overlay on narrow screens (closed by default --
+        // there's no room to spare); collapses to reclaim width on wide ones instead, and that
+        // choice is saved across page loads, since every nav click here is a full page reload.
         var toggle = document.querySelector('.menu-toggle');
         var sidebar = document.getElementById('sidebar');
+        var narrow = window.matchMedia('(max-width: 820px)');
+        var collapseKey = 'cts.sidebarCollapsed';
         if (toggle && sidebar) {
+            var syncToggle = function () {
+                var expanded = narrow.matches
+                    ? sidebar.classList.contains('open')
+                    : !document.body.classList.contains('sidebar-collapsed');
+                toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            };
+            try {
+                if (!narrow.matches && localStorage.getItem(collapseKey) === '1') {
+                    document.body.classList.add('sidebar-collapsed');
+                }
+            } catch (e) { /* storage blocked */ }
+            syncToggle();
             toggle.addEventListener('click', function () {
-                var open = sidebar.classList.toggle('open');
-                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (narrow.matches) {
+                    sidebar.classList.toggle('open');
+                } else {
+                    var collapsed = document.body.classList.toggle('sidebar-collapsed');
+                    try { localStorage.setItem(collapseKey, collapsed ? '1' : '0'); } catch (e) { /* storage blocked */ }
+                }
+                syncToggle();
             });
             document.addEventListener('click', function (event) {
                 if (sidebar.classList.contains('open') && !sidebar.contains(event.target) && !toggle.contains(event.target)) {
                     sidebar.classList.remove('open');
-                    toggle.setAttribute('aria-expanded', 'false');
+                    syncToggle();
                 }
             });
         }
