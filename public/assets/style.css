@@ -99,40 +99,32 @@ p { margin: 0 0 .75rem; }
     }
 }
 
-/* ---------- App shell ---------- */
-/* Content first, sidebar second -- the sidebar sits on the right (order: 2 puts it in the
-   second, 250px track below), not the left. DOM order is unchanged (sidebar markup still
-   comes first in header.php, before .app-main), only the visual/grid position moves, so
-   tab order still reaches the nav before the page content either way. */
-.app-layout { display: grid; grid-template-columns: 1fr 250px; }
-.sidebar { order: 2; }
+/* ---------- App shell: a dark horizontal nav row under the topbar, not a side column -----
+   Three sidebar positions in a row this session (left, right, now dropped entirely) --
+   going horizontal is a real enough shape change that it's a plain top-to-bottom stack
+   (topbar, then nav, then content, then footer) rather than a grid with a side track. */
+.app-layout { display: flex; flex-direction: column; min-height: 100vh; }
 /* The transition only exists on this class, added just for the ~220ms of an actual toggle
-   click and removed right after (see app.js). Leaving `transition: grid-template-columns`
-   on permanently breaks the sticky topbar: it stops repainting at its correct position
-   during scroll even with no transition running, while still *computing* the right
-   position (confirmed via getBoundingClientRect) -- a paint/compositing bug, not a layout
-   one. Scoping the transition to only the moment it's needed avoids it outright. */
-.app-layout.sidebar-animating { transition: grid-template-columns .22s ease; }
-/* Collapsed on a wide screen: the grid column itself slides to 0 instead of the sidebar
-   overlaying content -- there's room to just give the width back, unlike on narrow screens.
-   (.app-layout is the <body> element itself, so this is one compound selector, not a descendant.) */
-.app-layout.sidebar-collapsed { grid-template-columns: 1fr 0; }
-.app-layout.sidebar-collapsed .sidebar { padding-left: 0; padding-right: 0; overflow: hidden; }
-.sidebar { background: var(--sidebar); color: var(--sidebar-text); min-height: 100vh; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 1rem .75rem; overflow-y: auto; overflow-x: hidden; }
-.brand { display: flex; align-items: center; gap: .7rem; color: #fff; font-family: var(--font-serif); font-weight: 700; font-size: 1.3rem; padding: .5rem .6rem 1.4rem; }
+   click and removed right after (see app.js). The previous side-column version of this
+   collapse learned the hard way that leaving a transition property on permanently breaks
+   the sticky topbar's repaint during scroll even with nothing actively animating -- scoping
+   it to only the moment it's needed avoided that outright, so the same pattern carries over
+   here even though max-height/opacity is a gentler property to animate than a grid track. */
+.app-layout.nav-animating .top-nav { transition: max-height .22s ease, opacity .15s ease, padding .22s ease; }
+.app-layout.nav-collapsed .top-nav { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
+
+.top-nav { background: var(--sidebar); color: var(--sidebar-text); display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: .6rem 1.75rem; max-height: 200px; overflow: hidden; }
+.top-nav .brand { margin: .2rem 1rem .2rem 0; }
+.top-nav a:not(.brand) { display: inline-flex; align-items: center; gap: .55rem; padding: .55rem .85rem; border-radius: var(--radius-sm); color: var(--sidebar-text); font-family: var(--font-serif); font-weight: 700; white-space: nowrap; }
+.top-nav a:not(.brand):hover { background: var(--sidebar-active); color: #fff; text-decoration: none; }
+.top-nav a[aria-current="page"] { background: rgba(240, 168, 70, .14); color: #fff; box-shadow: inset 0 -3px 0 var(--sidebar-accent); }
+.nav-divider { width: 1px; align-self: stretch; margin: .3rem .5rem; background: rgba(255, 255, 255, .14); }
+
+.brand { display: flex; align-items: center; gap: .6rem; color: #fff; font-family: var(--font-serif); font-weight: 700; font-size: 1.2rem; }
 .brand:hover { text-decoration: none; }
-.logo { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 15px; background: linear-gradient(155deg, #b2560f, #7c2d12 75%); color: #fff4e4; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 4px 10px -2px rgba(0, 0, 0, .4); flex: none; }
-.logo .icon { width: 44px; height: 44px; }
-.sidebar nav { display: flex; flex-direction: column; gap: 2px; }
-.sidebar nav a { position: relative; display: flex; align-items: center; gap: .7rem; padding: .6rem .75rem; border-radius: var(--radius-sm); color: var(--sidebar-text); font-family: var(--font-serif); font-weight: 700; }
-.sidebar nav a:hover { background: var(--sidebar-active); color: #fff; text-decoration: none; }
-.sidebar nav a[aria-current="page"] { background: rgba(240, 168, 70, .14); color: #fff; box-shadow: inset 3px 0 0 var(--sidebar-accent); }
-.nav-heading { margin: 1.25rem .75rem .4rem; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: #8a8270; font-weight: 700; }
-.sidebar-footer { margin-top: auto; padding: .75rem; font-size: .78rem; color: #8a8270; }
-.app-main { min-width: 0; display: flex; flex-direction: column; }
-/* will-change forces its own compositing layer: without it, collapsing the sidebar (which
-   transitions grid-template-columns on an ancestor) leaves this sticky header's painted
-   position stale during scroll even though its computed layout position is correct. */
+.logo { display: inline-grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(155deg, #b2560f, #7c2d12 75%); color: #fff4e4; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 4px 10px -2px rgba(0, 0, 0, .4); flex: none; }
+.logo .icon { width: 34px; height: 34px; }
+
 .topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 1rem; background: rgba(255, 255, 255, .92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: .65rem 1.75rem; will-change: transform; }
 .topbar-search { flex: 1; max-width: 520px; display: flex; align-items: center; gap: .5rem; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 999px; padding: 0 .9rem; color: var(--text-muted); }
 .topbar-search:focus-within { border-color: var(--primary); background: #fff; }
@@ -144,7 +136,8 @@ p { margin: 0 0 .75rem; }
 .icon-button { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid transparent; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; margin: 0; transition: background-color .12s, color .12s; }
 .icon-button:hover { background: var(--surface-muted); border-color: var(--border); color: var(--text); text-decoration: none; box-shadow: none; }
 .menu-toggle { display: inline-grid; margin-left: .25rem; }
-.content { padding: 1.75rem; max-width: 1280px; width: 100%; }
+.content { padding: 1.75rem; max-width: 1280px; width: 100%; margin: 0 auto; }
+.app-footer { margin-top: auto; text-align: center; color: var(--text-muted); font-size: .78rem; padding: 1rem 1.75rem 1.5rem; }
 
 /* ---------- Sign-in layout: one centered card, not a split marketing panel -----------
    This is an internal tool people already use daily, not a signup page that needs to
@@ -506,9 +499,9 @@ tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
     .report-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 820px) {
-    .app-layout { grid-template-columns: 1fr; }
-    .sidebar { position: fixed; right: 0; top: 0; z-index: 40; width: 260px; transform: translateX(100%); transition: transform .2s; box-shadow: var(--shadow-lg); }
-    .sidebar.open { transform: none; }
+    .top-nav { flex-direction: column; flex-wrap: nowrap; align-items: stretch; padding: .5rem 1rem; max-height: 70vh; overflow-y: auto; }
+    .top-nav .brand { margin: .3rem 0 .5rem; }
+    .nav-divider { width: auto; height: 1px; align-self: stretch; margin: .4rem 0; }
     .topbar { padding: .6rem 1rem; }
     .user-meta { display: none; }
     .content { padding: 1.1rem 1rem; }
@@ -516,7 +509,6 @@ tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
     .hide-sm { display: none; }
 }
 @media print {
-    .sidebar, .topbar, .page-actions, form { display: none !important; }
-    .app-layout { display: block; }
+    .top-nav, .topbar, .page-actions, form { display: none !important; }
     .card { box-shadow: none; }
 }

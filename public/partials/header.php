@@ -27,50 +27,45 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
 <?php else : ?>
 <body class="app-layout">
 <a class="skip-link" href="#content">Skip to content</a>
-<aside class="sidebar" id="sidebar">
+<header class="topbar">
+    <form class="topbar-search" action="tickets.php" method="get" role="search">
+        <?= icon('search') ?>
+        <input type="search" name="q" placeholder="Search tickets by ID, title, or description"
+            aria-label="Search tickets" value="<?= e($topbarQuery) ?>">
+    </form>
+    <div class="topbar-user">
+        <?= avatar($currentUser['name']) ?>
+        <span class="user-meta">
+            <strong><?= e($currentUser['name']) ?></strong>
+            <span class="role-tag"><?= e(ucfirst($currentUser['role'])) ?></span>
+        </span>
+        <a class="icon-button" href="logout.php" title="Sign out" aria-label="Sign out"><?= icon('logout') ?></a>
+    </div>
+    <button type="button" class="icon-button menu-toggle" aria-controls="top-nav" aria-expanded="true"
+        aria-label="Toggle navigation"><?= icon('menu') ?></button>
+</header>
+<nav class="top-nav" id="top-nav" aria-label="Main navigation">
     <a class="brand" href="index.php">
         <span class="logo" aria-hidden="true"><?= logo_mark() ?></span><span>ResolveIT</span>
     </a>
-    <nav aria-label="Main navigation">
-        <a href="dashboard.php"<?= $navActive(['dashboard.php']) ?>><?= icon('dashboard') ?>Dashboard</a>
-        <a href="tickets.php"<?= $navActive(['tickets.php', 'ticket.php', 'ticket-edit.php']) ?>>
-            <?= icon('tickets') ?><?= has_role('employee') ? 'My Tickets' : 'Tickets' ?>
+    <a href="dashboard.php"<?= $navActive(['dashboard.php']) ?>><?= icon('dashboard') ?>Dashboard</a>
+    <a href="tickets.php"<?= $navActive(['tickets.php', 'ticket.php', 'ticket-edit.php']) ?>>
+        <?= icon('tickets') ?><?= has_role('employee') ? 'My Tickets' : 'Tickets' ?>
+    </a>
+    <a href="ticket-create.php"<?= $navActive(['ticket-create.php']) ?>><?= icon('plus') ?>New Ticket</a>
+    <a href="kb.php"<?= $navActive(['kb.php', 'kb-article.php', 'kb-edit.php']) ?>>
+        <?= icon('book') ?>Knowledge Base
+    </a>
+    <?php if (has_role('administrator')) : ?>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a href="users.php"<?= $navActive(['users.php', 'user-edit.php']) ?>>
+            <?= icon('users') ?>Manage Users
         </a>
-        <a href="ticket-create.php"<?= $navActive(['ticket-create.php']) ?>><?= icon('plus') ?>New Ticket</a>
-        <a href="kb.php"<?= $navActive(['kb.php', 'kb-article.php', 'kb-edit.php']) ?>>
-            <?= icon('book') ?>Knowledge Base
-        </a>
-        <?php if (has_role('administrator')) : ?>
-            <p class="nav-heading">Administration</p>
-            <a href="users.php"<?= $navActive(['users.php', 'user-edit.php']) ?>>
-                <?= icon('users') ?>Manage Users
-            </a>
-            <a href="reports.php"<?= $navActive(['reports.php']) ?>><?= icon('chart') ?>Reports</a>
-            <a href="settings.php"<?= $navActive(['settings.php']) ?>><?= icon('settings') ?>Settings</a>
-        <?php endif; ?>
-    </nav>
-    <div class="sidebar-footer">ResolveIT &middot; CTS 4911 capstone</div>
-</aside>
-<div class="app-main">
-    <header class="topbar">
-        <form class="topbar-search" action="tickets.php" method="get" role="search">
-            <?= icon('search') ?>
-            <input type="search" name="q" placeholder="Search tickets by ID, title, or description"
-                aria-label="Search tickets" value="<?= e($topbarQuery) ?>">
-        </form>
-        <div class="topbar-user">
-            <?= avatar($currentUser['name']) ?>
-            <span class="user-meta">
-                <strong><?= e($currentUser['name']) ?></strong>
-                <span class="role-tag"><?= e(ucfirst($currentUser['role'])) ?></span>
-            </span>
-            <a class="icon-button" href="logout.php" title="Sign out" aria-label="Sign out"><?= icon('logout') ?></a>
-        </div>
-        <!-- Next to the avatar, not the search box -- the sidebar it controls is on the right now. -->
-        <button type="button" class="icon-button menu-toggle" aria-controls="sidebar" aria-expanded="false"
-            aria-label="Open menu"><?= icon('menu') ?></button>
-    </header>
-    <main class="content" id="content">
+        <a href="reports.php"<?= $navActive(['reports.php']) ?>><?= icon('chart') ?>Reports</a>
+        <a href="settings.php"<?= $navActive(['settings.php']) ?>><?= icon('settings') ?>Settings</a>
+    <?php endif; ?>
+</nav>
+<main class="content" id="content">
 <?php endif; ?>
 <?php if ($flashMessage) : ?>
     <div class="alert <?= e($flashMessage['type']) ?>" role="status">

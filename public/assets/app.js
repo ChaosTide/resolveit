@@ -325,47 +325,42 @@
     });
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Sidebar: slides in/out as an overlay on narrow screens (closed by default --
-        // there's no room to spare); collapses to reclaim width on wide ones instead, and that
-        // choice is saved across page loads, since every nav click here is a full page reload.
+        // Top nav: a horizontal row in normal document flow now, not a side panel, so it
+        // collapses in place (max-height/opacity) rather than sliding off as an overlay.
+        // Defaults collapsed on narrow screens (less room to spare) and expanded on wide
+        // ones; after that, whichever way it's toggled is saved across page loads, since
+        // every nav click here is a full page reload, not a single-page app.
         var toggle = document.querySelector('.menu-toggle');
-        var sidebar = document.getElementById('sidebar');
+        var topNav = document.getElementById('top-nav');
         var narrow = window.matchMedia('(max-width: 820px)');
-        var collapseKey = 'cts.sidebarCollapsed';
-        if (toggle && sidebar) {
+        var collapseKey = 'cts.navCollapsed';
+        if (toggle && topNav) {
             var syncToggle = function () {
-                var expanded = narrow.matches
-                    ? sidebar.classList.contains('open')
-                    : !document.body.classList.contains('sidebar-collapsed');
+                var expanded = !document.body.classList.contains('nav-collapsed');
                 toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
             };
             try {
-                if (!narrow.matches && localStorage.getItem(collapseKey) === '1') {
-                    document.body.classList.add('sidebar-collapsed');
+                var stored = localStorage.getItem(collapseKey);
+                if (stored === null ? narrow.matches : stored === '1') {
+                    document.body.classList.add('nav-collapsed');
                 }
-            } catch (e) { /* storage blocked */ }
+            } catch (e) {
+                if (narrow.matches) document.body.classList.add('nav-collapsed');
+            }
             syncToggle();
             toggle.addEventListener('click', function () {
-                if (narrow.matches) {
-                    sidebar.classList.toggle('open');
-                } else {
-                    // The transition is added only for the moment of this click and removed
-                    // right after -- see the .sidebar-animating rule in style.css for why.
-                    document.body.classList.add('sidebar-animating');
-                    clearTimeout(toggle._animTimer);
-                    toggle._animTimer = setTimeout(function () {
-                        document.body.classList.remove('sidebar-animating');
-                    }, 260);
-                    var collapsed = document.body.classList.toggle('sidebar-collapsed');
-                    try { localStorage.setItem(collapseKey, collapsed ? '1' : '0'); } catch (e) { /* storage blocked */ }
-                }
+                // The transition is added only for the moment of this click and removed
+                // right after -- see the .nav-animating rule in style.css for why (same
+                // reasoning as the collapsible sidebar before it: a transition left on
+                // permanently broke the sticky topbar's repaint during scroll).
+                document.body.classList.add('nav-animating');
+                clearTimeout(toggle._animTimer);
+                toggle._animTimer = setTimeout(function () {
+                    document.body.classList.remove('nav-animating');
+                }, 260);
+                var collapsed = document.body.classList.toggle('nav-collapsed');
+                try { localStorage.setItem(collapseKey, collapsed ? '1' : '0'); } catch (e) { /* storage blocked */ }
                 syncToggle();
-            });
-            document.addEventListener('click', function (event) {
-                if (sidebar.classList.contains('open') && !sidebar.contains(event.target) && !toggle.contains(event.target)) {
-                    sidebar.classList.remove('open');
-                    syncToggle();
-                }
             });
         }
 

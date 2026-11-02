@@ -367,3 +367,56 @@ at the result instead of assuming the refactor was safe:
 | `phpcs` (`header.php`, `footer.php`) | 0 errors, 0 warnings |
 | `tests/check-local.ps1` | 137 / 137 pass |
 | Manual pass | desktop (full page, no scroll); mobile 375px (confirmed `scrollWidth === clientWidth` via JS, not just visual check) |
+
+## 10. Navigation: left sidebar → right sidebar → top nav
+
+Three positions for the same navigation in close succession. Jordan didn't
+want it on the left; moved it to the right first (section 9's sequel,
+smallest possible change — same vertical list, same collapse behavior, just
+mirrored); then asked for the top specifically. A horizontal top nav isn't
+a smaller version of the same change — vertical space is comparatively
+abundant, horizontal space is tight, and cramming a logo plus 7 nav items
+(4 general, a divider, 3 admin-only) into one row needed an actual decision
+about what gets cut or wrapped, not just a mirrored transform.
+
+**What it became:** the app shell is a plain top-to-bottom stack now —
+light `.topbar` (search, avatar, the collapse toggle), dark `.top-nav`
+(logo + every nav link, in the same copper/graphite palette the old
+sidebar used), then page content, then a plain-text footer. No more CSS
+Grid two-column layout; `.app-main` as a wrapper div is gone entirely,
+since there's no longer a side column for it to sit opposite.
+
+**The collapse mechanism changed, not just its trigger.** The sidebar
+version (sections 6, 9) animated a CSS Grid column's width — which is how
+the sticky-topbar repaint bug happened in the first place, and needed real
+investigation to fix (not blind trial and error — isolated it to the mere
+*presence* of a `transition` on `grid-template-columns`, confirmed by
+directly reading `getBoundingClientRect` rather than trusting screenshots,
+since those turned out to be unreliable while the browser pane itself is
+backgrounded). A horizontal row doesn't have that option — collapsing it
+means animating `max-height`/`opacity` on the row itself instead of a
+grid track on its container. Different property, but the same lesson
+carried over anyway: the transition is added via a `.nav-animating` class
+only for the ~220ms a toggle click is actually running, never left on
+permanently, same reasoning as before. `app.js` dropped roughly half its
+sidebar-toggle code in the process — no more narrow-vs-wide branching for
+*how* it collapses (only for the *default* state it starts in), since
+max-height/opacity works identically at every width, where the old
+version needed one mechanism for a fixed-position mobile overlay and a
+completely different one for a desktop grid-column collapse.
+
+**Real bug caught before shipping, not after:** the first version of the
+mobile layout (`flex-direction: column` for narrow screens) silently
+inherited `flex-wrap: wrap` and `max-height: 200px` from the desktop rule,
+so instead of one stacked list it wrapped into two side-by-side columns
+once it ran out of vertical room. Fixed with an explicit `flex-wrap: nowrap`
+and a viewport-relative `max-height: 70vh` (with `overflow-y: auto` as a
+safety net) for the mobile case specifically — caught by actually looking
+at the rendered mobile layout, not assumed to work from the desktop version
+looking right.
+
+| Check | Result |
+|---|---|
+| `phpcs` (`header.php`, `footer.php`) | 0 errors, 0 warnings |
+| `tests/check-local.ps1` | 137 / 137 pass |
+| Manual pass | desktop expand/collapse round-trip; sticky topbar re-verified correct after scroll (`getBoundingClientRect`, not just a screenshot); mobile expand/collapse; a second page (tickets.php) checked, not just dashboard |
