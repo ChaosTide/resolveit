@@ -53,8 +53,6 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
 </aside>
 <div class="app-main">
     <header class="topbar">
-        <button type="button" class="icon-button menu-toggle" aria-controls="sidebar" aria-expanded="false"
-            aria-label="Open menu"><?= icon('menu') ?></button>
         <form class="topbar-search" action="tickets.php" method="get" role="search">
             <?= icon('search') ?>
             <input type="search" name="q" placeholder="Search tickets by ID, title, or description"
@@ -68,6 +66,9 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
             </span>
             <a class="icon-button" href="logout.php" title="Sign out" aria-label="Sign out"><?= icon('logout') ?></a>
         </div>
+        <!-- Next to the avatar, not the search box -- the sidebar it controls is on the right now. -->
+        <button type="button" class="icon-button menu-toggle" aria-controls="sidebar" aria-expanded="false"
+            aria-label="Open menu"><?= icon('menu') ?></button>
     </header>
     <main class="content" id="content">
 <?php endif; ?>
