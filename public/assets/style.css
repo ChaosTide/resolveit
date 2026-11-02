@@ -47,11 +47,12 @@ html:has(body.auth-layout) { overflow-x: hidden; }
 body { margin: 0; min-height: 100vh; }
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
-h1, h2, h3 { line-height: 1.25; margin: 0 0 .75rem; font-family: var(--font-sans); }
-/* Page headlines get a serif -- one deliberate, non-system-looking choice set against an
-   otherwise all-sans UI, rather than the same typeface used for every piece of text. The
-   brand wordmark stays sans (tied to the logo mark); this is for page/section content only. */
-h1 { font-family: var(--font-serif); font-size: 1.75rem; font-weight: 700; letter-spacing: -.005em; }
+/* Every heading level -- page titles and card/section headers alike -- shares the same
+   serif, so it's one consistent text style rather than the title looking different from
+   the rest. Size and weight still step down from h1 to h3, so there's still a visual
+   hierarchy; it's just carried by scale now, not by switching typefaces partway down. */
+h1, h2, h3 { line-height: 1.25; margin: 0 0 .75rem; font-family: var(--font-serif); }
+h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -.005em; }
 h2 { font-size: 1.05rem; font-weight: 650; }
 p { margin: 0 0 .75rem; }
 .icon { width: 18px; height: 18px; flex: none; }
