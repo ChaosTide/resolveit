@@ -848,3 +848,43 @@ inherits both automatically since none of them override `border-radius` or
 |---|---|
 | Manual pass | Sign-in button; Tickets page (Create Ticket, Advanced Search, Apply, Refresh, Export CSV, the active "All" filter chip, the active Tickets nav-tab border — confirmed it now matches the buttons instead of being a second orange) — desktop and mobile (375px, checked `ADVANCED SEARCH` specifically for wrap/overflow on the longest button label); `scrollWidth === clientWidth` on mobile |
 | Signed in throughout | |
+
+## 20. Every card, table, and panel sharpened to match
+
+Jordan: "do it for all the boxes on each page... and the dashboard" — the KPI tiles,
+section cards (My queue, Needs attention, Recent activity), and every other `.card` were
+still the old `11px`-rounded style while buttons and the sign-in card had already gone
+sharp. One-line fix, not dozens: `--radius` (`.card`, `.table-wrap`'s own border) went
+`11px → 6px` and `--radius-sm` (inputs, icon buttons, nav links, alerts, the resolution
+box, comment bubbles, and more) went `7px → 4px`, at the `:root` level — every one of
+those elements already referenced the token rather than a hardcoded number, so changing
+the two values was the whole fix. That's the reason this app has run on a token system
+since the very first redesign pass (section 3): a site-wide look change should be a
+small diff, not a hunt through every file.
+
+Cleaned up two leftover hardcoded numbers while in here, now that they'd be identical to
+the token anyway: `.auth-main .card`'s `border-radius: 6px` (section 15) → `var(
+--radius)`, and `button, .button`'s `border-radius: 4px` (section 19) → `var(
+--radius-sm)`. Both still render exactly the same; neither is a one-off value sitting
+outside the system anymore. `--radius-lg` stays defined but unused (nothing currently
+references it — not touched, not worth a separate cleanup pass over one dead token).
+
+**On the floating search-bar overlap visible in Jordan's screenshot:** this is the
+second time a screenshot has shown the topbar superimposed mid-page rather than pinned
+to the top (section 18 covered the first one, on `ticket-edit.php`). Looking more
+closely at *where* it sits this time — roughly mid-page, not at the viewport's actual
+top edge — this looks less like the sticky/backdrop-filter repaint bug section 18 fixed,
+and more consistent with how a "capture the full scrollable page" screenshot tool
+stitches together several scrolled screenshots: a `position: sticky` element gets
+re-captured at the top of *each* scrolled segment, so it shows up twice in the final
+stitched image — once for real, once at the seam. That would mean nothing is actually
+wrong on screen for a person scrolling normally, only in a stitched capture of it. Not
+certain enough to call this definitively "not a bug" outright, but worth saying plainly:
+flag me the next time it happens with how exactly the screenshot was taken (a scrolling
+capture tool vs. one normal in-browser screenshot) — that single detail tells the two
+causes apart.
+
+| Check | Result |
+|---|---|
+| Manual pass | Dashboard (KPI tiles, My queue, Needs attention, Recent activity), Tickets (filter card, table-wrap) — desktop and mobile (375px); `scrollWidth === clientWidth` on mobile |
+| Signed in throughout | |
