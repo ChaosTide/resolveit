@@ -143,6 +143,13 @@ p { margin: 0 0 .75rem; }
    This is an internal tool people already use daily, not a signup page that needs to
    sell them on features -- so no side panel of persuasive copy. Just the product and
    a plain, confident way in. */
+/* Real hero photo this time -- Jordan supplied public/assets/auth-hero.webp directly (a
+   custom banner, not a stranger's stock/theme asset), so the earlier CSS-only stand-in
+   (faint giant logo mark, see git history) is replaced rather than layered under it. The
+   banner already has its own baked-in "RESOLVE" wordmark, so auth-brand-mark is removed
+   from header.php for this page instead of stacking a second, live-text one on top of it.
+   Still zero extra network requests -- local asset, same as logo-mark.png, same CSP reason
+   noted throughout this file. */
 .auth-layout {
     min-height: 100vh;
     display: flex;
@@ -151,52 +158,23 @@ p { margin: 0 0 .75rem; }
     overflow: hidden;
     color: #fff;
     background:
-        radial-gradient(ellipse 820px 640px at 6% -4%, rgba(178, 86, 15, .5), transparent 60%),
-        radial-gradient(ellipse 760px 600px at 103% 103%, rgba(14, 116, 144, .4), transparent 62%),
-        radial-gradient(circle at 50% -10%, #3a1f0f 0%, var(--sidebar) 55%),
+        linear-gradient(to top, var(--sidebar) 0%, rgba(18, 20, 23, .96) 30%,
+            rgba(18, 20, 23, .78) 50%, rgba(18, 20, 23, .3) 68%, transparent 84%),
+        url("auth-hero.webp") center top / cover no-repeat,
         var(--sidebar);
-}
-.auth-layout::before {
-    content: "";
-    position: absolute; inset: 0;
-    background-image: radial-gradient(rgba(255, 255, 255, .08) 1px, transparent 1px);
-    background-size: 24px 24px;
-    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 0%, transparent 72%);
-    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 0%, transparent 72%);
-    pointer-events: none;
-}
-/* A huge, barely-there version of the real logo mark bleeding off the edge, standing in for
-   a hero photo -- gives the scene depth without a stock image (none are licensed for this
-   project) and without the network request a real photo/font would cost under this page's
-   CSP (default-src 'self', see file header). */
-.auth-layout::after {
-    content: "";
-    position: absolute;
-    top: 50%; right: -9%;
-    width: 640px; height: 640px;
-    transform: translateY(-50%) rotate(-10deg);
-    background-image: url("logo-mark.png");
-    background-size: contain;
-    background-repeat: no-repeat;
-    opacity: .08;
-    pointer-events: none;
 }
 .auth-center {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    /* Bottom-anchored, not centered -- auth-hero.webp has its scene/wordmark in the top
+       ~70% and a deliberately empty, darker band along the bottom, sized for exactly this. */
+    justify-content: flex-end;
     padding: 3rem 1.5rem;
     position: relative;
     z-index: 1;
 }
-.auth-brand-mark { display: flex; align-items: center; gap: 1rem; margin-bottom: 2.5rem; }
-.auth-brand-mark .logo { width: 58px; height: 58px; border-radius: 16px; }
-.auth-brand-mark .logo .icon { width: 48px; height: 48px; }
-.auth-brand-text { display: flex; flex-direction: column; gap: .2rem; }
-.auth-wordmark { font-family: var(--font-serif); font-size: 2.15rem; font-weight: 700; letter-spacing: -.01em; line-height: 1; }
-.auth-kicker { font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(255, 255, 255, .55); }
 .auth-main { width: 100%; max-width: 400px; color: var(--text); }
 .auth-main .card { padding: 2.25rem; border-radius: var(--radius-lg); box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .5); }
 .auth-card { border-top: 3px solid var(--primary); }

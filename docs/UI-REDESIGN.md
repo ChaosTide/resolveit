@@ -559,3 +559,42 @@ no spec yet (ticket-scoped? company-wide? DMs?). Worth a one-paragraph change re
 the team actually wants it, same process `docs/STATUS-UPDATE-NOAH.md` already describes
 for anything touching "frozen" Tasks 5/6 — not something to guess the shape of and build
 unasked.
+
+## 14. Sign-in page, real photo this time
+
+Section 12's stand-in (giant faint logo mark bleeding off the edge, CSS-only, because no
+licensed photo existed for the page) got replaced outright — Jordan supplied an actual
+banner, [`auth-hero.webp`](../public/assets/auth-hero.webp) (1672x941, custom artwork with
+"RESOLVE / INFORMATION TECHNOLOGY" already baked into it), with the explicit ask to put it
+behind the sign-in page. Unlike the Ashe theme in section 12, this one is Jordan's own
+asset for this project, so it's used directly rather than taken as inspiration only.
+
+**Two things had to change, not just drop in a background-image:**
+
+1. **The live text wordmark had to go.** The old `.auth-brand-mark` block
+   (icon + "ResolveIT" + "IT Service Desk" kicker, added in section 12) would have sat
+   directly on top of the image's own baked-in "RESOLVE" title — two brand treatments
+   stacked on each other. Removed the whole block from
+   [`header.php`](../public/partials/header.php) and the now-orphaned
+   `.auth-brand-mark`/`.auth-brand-text`/`.auth-wordmark`/`.auth-kicker` rules from
+   `style.css` (same "delete dead CSS, don't leave it" rule section 8's reports-page
+   cleanup already followed). The photo carries the branding on this page now; the page
+   `<title>` ("Sign In · ResolveIT") still carries the accessible name.
+2. **The card had to move.** First pass just swapped the background and left
+   `.auth-center` centering its content — the card landed mid-image, directly over
+   "RESOLVE" and a soldier's face, with title text peeking out on both sides. The photo
+   itself has a deliberately empty, darkening band along the bottom (visible in the
+   source image), clearly meant to hold UI. Changed `.auth-center` from
+   `justify-content: center` to `flex-end` so the card anchors to that band instead, and
+   extended the darkening scrim (a `linear-gradient` layered *over* the photo in the same
+   `background` shorthand — gradients listed first in a multi-layer `background` paint on
+   top) further up the page so the transition from photo to card stays legible instead of
+   cutting the subtitle text off abruptly.
+
+`auth-hero.webp` is a local file under `public/assets/`, loaded the same CSP-compliant
+way every other asset on this page already is (no external request).
+
+| Check | Result |
+|---|---|
+| `phpcs` (`header.php`) | 0 errors, 0 warnings |
+| Manual pass | signed in end-to-end after the change; desktop (1440x900) — card sits over the dark band, no text directly behind it; mobile (375x812) — image crops to the mountains/title, card still fully legible; `document.documentElement.scrollWidth === clientWidth` checked directly on mobile (no horizontal overflow) |

@@ -22,13 +22,6 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
 <?php if (!$currentUser) : ?>
 <body class="auth-layout">
 <div class="auth-center">
-    <div class="auth-brand-mark">
-        <span class="logo" aria-hidden="true"><?= logo_mark() ?></span>
-        <span class="auth-brand-text">
-            <span class="auth-wordmark">ResolveIT</span>
-            <span class="auth-kicker">IT Service Desk</span>
-        </span>
-    </div>
     <main class="auth-main">
 <?php else : ?>
 <body class="app-layout">
