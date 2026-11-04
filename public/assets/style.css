@@ -175,9 +175,34 @@ p { margin: 0 0 .75rem; }
     position: relative;
     z-index: 1;
 }
-.auth-main { width: 100%; max-width: 400px; color: var(--text); }
-.auth-main .card { padding: 2.25rem; border-radius: var(--radius-lg); box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .5); }
-.auth-card { border-top: 3px solid var(--primary); }
+.auth-main { width: 100%; max-width: 400px; color: #fff; }
+/* Frosted tactical panel instead of an opaque white card -- the background photo stays
+   visible through it (the ask), and a dark glass panel with a thin glowing border reads
+   as a HUD overlay rather than a generic light SaaS card (the "more military, like
+   airforce.com" ask: that site runs sharp corners, high-contrast dark panels, and bold
+   uppercase display type over full-bleed photos -- see docs/UI-REDESIGN.md section 15). */
+.auth-main .card {
+    padding: 2.25rem;
+    border-radius: 6px;
+    background: rgba(18, 20, 23, .74);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, .14);
+    box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7);
+}
+.auth-card { border-top: 2px solid var(--primary); position: relative; }
+/* Targeting-bracket corners, HUD-style, in the cooler accent so they read as instrument
+   detailing rather than a repeat of the primary-color top border. */
+.auth-card::before, .auth-card::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    pointer-events: none;
+}
+.auth-card::before { top: -2px; left: -1px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+.auth-card::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+.auth-main h1 { text-transform: uppercase; letter-spacing: .03em; font-size: 1.55rem; }
 .auth-footer {
     position: relative; z-index: 1; text-align: center; color: rgba(255, 255, 255, .45);
     font-size: .85rem; padding: 0 1.5rem 2rem;

@@ -598,3 +598,61 @@ way every other asset on this page already is (no external request).
 |---|---|
 | `phpcs` (`header.php`) | 0 errors, 0 warnings |
 | Manual pass | signed in end-to-end after the change; desktop (1440x900) — card sits over the dark band, no text directly behind it; mobile (375x812) — image crops to the mountains/title, card still fully legible; `document.documentElement.scrollWidth === clientWidth` checked directly on mobile (no horizontal overflow) |
+
+## 15. Sign-in card: frosted tactical panel, airforce.com as a real reference
+
+Jordan's follow-up on section 14's result: the opaque white card was still sitting
+squarely over the banner's own title text (confirmed from a screenshot, not guessed), and
+the ask was to either move it or redesign around it, plus make the page read more
+military — named [airforce.com](https://www.airforce.com/) as the reference.
+
+**Looked at the actual site instead of guessing "military" from stereotype.** Pulled
+real computed styles off airforce.com rather than eyeballing it: base color
+`rgb(14, 23, 45)` (a near-black navy), headline font-weight 700 uppercase (their own
+licensed display faces, `Stratum`/`FFDINWeb` — not usable here, CSP + no custom webfonts
+anywhere in this project), and button/panel corner radii of 0-2px across the board — a
+hard, sharp-edged UI, not the soft rounded corners most SaaS sites use. That's a
+specific, checkable set of signals, not a vibe.
+
+**Didn't adopt their navy.** This app already has a deliberate, documented two-color
+brand system (copper `--primary`, cyan `--accent` — section 3's color table, with
+contrast ratios). Introducing a third brand hue for one page would undercut that rather
+than extend it. Took the *shape* language instead — sharp corners, high-contrast dark
+panel, uppercase tracked display text — and applied it with this app's own colors.
+
+**What changed** (`style.css`, `.auth-main .card` / `.auth-card`):
+- Card background: opaque white → `rgba(18, 20, 23, .74)` with `backdrop-filter:
+  blur(16px)`. This is what actually answers "move it so we can see the image" — the
+  photo (and the banner's own title) stays visible, softened, *through* the panel,
+  instead of needing to find a spot on the image with nothing behind the card. Works at
+  any scroll position or viewport size, where hand-tuning a fixed offset only works for
+  one.
+- Border radius `var(--radius-lg)` (15px) → `6px`. Border color/top accent: swapped the
+  soft drop shadow look for a 1px hairline border plus the existing 2px copper top
+  border (was 3px; thinned to read as instrumentation, not a stripe).
+- Added two HUD-style corner brackets (`::before`/`::after`, two border sides each, top-left
+  and bottom-right) in `--accent` (cyan) — the second brand color, previously only used
+  for the sign-in glow and status lights, now doing double duty as instrument detailing.
+- `h1` on this page only: uppercase, letter-spaced. Still the site-wide serif (section 3's
+  "every heading shares one typeface" rule, unchanged) — reads like an engraved plaque
+  rather than breaking from the established type system to chase the reference site's
+  own (unavailable) display font.
+- `.auth-main`'s text color flipped dark-on-light → white, since the panel itself is now
+  dark. Didn't touch input styling — fields stay solid white, which is what already gave
+  the strongest contrast against both old and new card backgrounds.
+
+**One false alarm, not a real bug:** a mobile screenshot immediately after load appeared
+to show the backdrop blur not applying (banner text fully sharp behind the glass). Checked
+computed style before changing anything — `backdropFilter: "blur(16px)"`,
+`CSS.supports('backdrop-filter', ...) === true` — confirmed correct and supported; a
+second screenshot one beat later showed the blur rendering fine. Stale/mid-paint capture
+while the pane isn't focused, the same class of issue noted elsewhere in this doc and in
+`ENGINEERING-NOTES.md` — not a CSS defect, so nothing was "fixed."
+
+| Check | Result |
+|---|---|
+| Manual pass | signed in end-to-end after the change; desktop (1440x900) — both corner brackets render, banner text visible-but-softened through the panel; mobile (375x812) — rechecked after the stale-screenshot false alarm, blur confirmed rendering; `document.documentElement.scrollWidth === clientWidth` on mobile (no horizontal overflow) |
+
+Sources consulted: [airforce.com](https://www.airforce.com/), for real computed colors,
+type weight/case, and corner-radius values (see above) — no assets, fonts, or copy taken
+from it; this project's CSP and typography system rule those out regardless.
