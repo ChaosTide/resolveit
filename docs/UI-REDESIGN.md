@@ -656,3 +656,83 @@ while the pane isn't focused, the same class of issue noted elsewhere in this do
 Sources consulted: [airforce.com](https://www.airforce.com/), for real computed colors,
 type weight/case, and corner-radius values (see above) — no assets, fonts, or copy taken
 from it; this project's CSP and typography system rule those out regardless.
+
+## 16. The whole app, not just sign-in: dark theme
+
+Jordan's ask, from a Dashboard screenshot: match the rest of the app to the sign-in
+page's new look — "just change the colors." The color-token part of that really is
+simple (this app has run on one `:root` token system since the first redesign pass,
+section 3) — the part that isn't simple is that roughly a dozen rules don't reference
+those tokens for their *background*, because they were written assuming a permanently
+light page. Flipping `--text` light without checking those would have made several
+real things unreadable, not just looked different. Went through the whole stylesheet
+once rather than the one screenshot's worth of surface.
+
+**New token values** (`:root`), contrast-checked, not eyeballed:
+
+| Token | Old | New | vs. | Ratio |
+|---|---|---|---|---|
+| `--bg` | `#eef0f3` | `#1b1d21` | — | — |
+| `--surface` | `#ffffff` | `#232629` | — | — |
+| `--surface-muted` | `#eceef1` | `#2a2d32` | — | — |
+| `--border` | `#dde1e6` | `#30343a` | — | — |
+| `--border-strong` | `#c1c7d0` | `#6c7380` | vs `--surface` | 3.19:1 (passes WCAG non-text 3:1) |
+| `--text` | `#15181c` | `#f1f2f4` | vs `--bg` / `--surface` | 15.07:1 / 13.58:1 |
+| `--text-muted` | `#636a75` | `#9aa1ab` | vs `--bg` / `--surface` / `--surface-muted` | 6.48:1 / 5.84:1 / 5.30:1 |
+
+Two new tokens, not a replacement for anything: `--text-on-light` (`#15181c`, the *old*
+`--text` value) and `--highlight` (`rgba(154, 52, 18, .18)`).
+
+**Left alone, same reasoning as the original re-theme:** every semantic status/priority/
+SLA color (`--success`, `--warning`, `--danger`, `--info`, `--violet` and their `-soft`
+pairs), `--primary`, `--accent`, and the sidebar/top-nav tokens (already dark since the
+first pass). Changing a working, correct traffic-light system risks confusing meanings
+that already work — the same line from section 3, still true here.
+
+**The actual bug class, and the two different fixes:**
+
+1. **Components with a background that was never a token** — `input`/`select`/`textarea`,
+   `.button.secondary`, `.chip` all hardcode `background: #fff` on purpose (clear, legible
+   form fields and filter pills, independent of page theme — the sign-in page already
+   established this exact pattern with its own white inputs on a dark glass card). Their
+   *text* color, though, was `var(--text)` — fine when that token was dark, broken (white
+   text on their own white background) once it flipped light. Fix: new `--text-on-light`
+   token, swapped in wherever a component's background stays light on purpose. Same fix
+   for the secondary-button loading spinner's `border-top-color`, same bug, easy to miss
+   since it only shows while a form is submitting.
+2. **Full-block highlights that used `--primary-soft` as a background** — row hover,
+   row/selected state, the sorted-column header, staff reply bubbles, the bulk-action bar's
+   "selected" state. Different root cause: these don't have their own fixed background,
+   they sit on the *same* `--primary-soft` light-pastel token everywhere else in the app
+   (icon chips, badges) already uses correctly — correctly, because those spots color
+   their icon/text explicitly. These didn't; their text (ticket titles, requester names,
+   comment text) inherits the page's text color, which is exactly what should follow
+   the theme. Recoloring each nested element individually (ticket title, ticket id,
+   requester name, meta text, due date…) would be fragile — easy to miss one, and a
+   prior pass already noted a similar one-off (`-moz` style) gets forgotten. Fix:
+   `--highlight`, a translucent copper wash instead of an opaque light pastel. The text
+   underneath stays whatever color it already correctly is; the wash is just visible
+   *through* it, which also means it keeps working regardless of what's nested inside,
+   not just the elements checked today. `.resolution-box` had the same shape of problem
+   with `--success-soft`; same fix, inline (one spot, didn't template it as a third
+   token).
+3. **The topbar** (search/avatar/sign-out row) was still hardcoded
+   `rgba(255, 255, 255, .92)` — a bright bar sitting directly above the already-dark
+   `.top-nav`. Changed to a dark frosted equivalent (`rgba(18, 20, 23, .85)`, same
+   `backdrop-filter: blur(8px)` as before) so the two nav rows read as one shell instead
+   of light-then-dark. Its focus-within search state also hardcoded `background: #fff`;
+   changed to `var(--surface)` so focusing the search box doesn't flash back to light
+   mode for one element.
+
+**What this deliberately did not touch:** `--shadow`/`--shadow-lg` (tuned for a light
+page; barely visible now, but not broken — cards still separate from the page via the
+surface/bg contrast and a 1px border) and print styles (`@media print` was never
+theme-aware either way; dark-on-dark printing is a pre-existing, unrelated gap).
+
+| Check | Result |
+|---|---|
+| Manual pass | Dashboard, Tickets (quick-filter chips, row hover — the highest-risk spot, confirmed text stays legible over the new `--highlight` wash, not just the badges which were never at risk), Ticket detail (resolution box, staff vs. requester comment bubbles), Reports (date inputs, the secondary "Export" button — would have been invisible text without the `--text-on-light` fix, caught before shipping by checking this page specifically, not assumed from the dashboard alone) — all checked signed in, in-browser |
+| Signed in end-to-end | after the change, to confirm nothing in the auth flow itself regressed |
+
+Sources: none external this time — this one was entirely about the existing token
+system's own coverage, not a new design reference.
