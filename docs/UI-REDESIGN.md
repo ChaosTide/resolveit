@@ -757,3 +757,48 @@ now reads as one system instead of titles being the one lower-case holdout.
 | Check | Result |
 |---|---|
 | Manual pass | Dashboard, Knowledge Base, Manage Users — desktop and mobile (375px). Checked specifically for wrapping on the longer titles/card headers at mobile width; none found. Signed in throughout. |
+
+## 18. Topbar: forcing a GPU layer so the sticky header doesn't go stale on scroll
+
+Jordan's screenshot on `ticket-edit.php` showed the topbar (search bar, avatar) and the
+page's own "MANAGE TICKET #2001" heading overlapping and both legible at once, like two
+frames superimposed — not a layout bug (nothing was actually positioned wrong) but the
+exact "sticky topbar stops repainting during scroll" issue this file already has a note
+about from the first redesign pass (section 9/the `overflow-x` comment near the top of
+`style.css`): the computed position is correct, the *painted pixels* go stale and stop
+updating.
+
+That earlier fix only covered one specific trigger (`overflow-x: hidden` on `<html>`
+combined with the nav-collapse transition) and scoped it off the sign-in page, which
+worked for that cause. This is the same failure mode with a different likely trigger:
+`.topbar` has run `backdrop-filter: blur(8px)` on a `position: sticky` element since
+before this session, which is a known category of Chromium bug on its own — a sticky
+element with a backdrop filter can stop recompositing on scroll independent of the
+`overflow-x` cause already fixed. It probably always carried this risk; it wasn't
+reported before because the *old* topbar was `rgba(255, 255, 255, .92)` — a stale frame
+and a fresh one both look like "mostly white," so a silent stale repaint was nearly
+invisible. Section 16 changed it to `rgba(18, 20, 23, .85)`, a darker, more translucent
+fill where a stale vs. fresh frame actually looks different — same underlying bug,
+suddenly visible because this session made it visible, not because this session caused it.
+
+**Fix:** `transform: translateZ(0)` added to `.topbar`, forcing it onto its own stable
+GPU compositing layer — the standard, well-documented mitigation for sticky+backdrop-filter
+stale-paint in Chromium, independent of the specific `overflow-x` trigger already handled
+elsewhere.
+
+**Honesty check on verification:** could not force a clean reproduction of the original
+glitch in the automated browser pane used for this session to do a clean before/after
+comparison — screenshots in that pane kept failing with "the page did not finish
+rendering in time... Claude's window is minimized," i.e. the pane itself is frequently
+backgrounded, which is plausibly related to the same class of bug (backgrounded tabs get
+deprioritized compositing) but made a controlled repro impractical rather than easier.
+Applied the fix because the mechanism is well-established and the timing lines up exactly
+with section 16's topbar color change, not because it was watched failing and then watched
+fixed. Confirmed the page renders correctly, scrolls cleanly, and nothing else regressed
+— but whether this fully resolves what Jordan saw needs a real check on Jordan's end, not
+just a claim here.
+
+| Check | Result |
+|---|---|
+| Manual pass | `ticket-edit.php` loads clean, scrolls up/down repeatedly without visible overlap in this session's testing; topbar still sticky, still blurred, still functions |
+| Not verified | The original glitch itself was never reproduced here to confirm the fix against it directly — ask Jordan to confirm on their end |
