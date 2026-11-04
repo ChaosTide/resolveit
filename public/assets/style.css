@@ -340,14 +340,20 @@ textarea { min-height: 8rem; resize: vertical; }
 /* Military-button treatment to match the sign-in page / airforce.com reference (section
    15): sharper corners than the rest of the app's rounded controls, uppercase tracked
    labels (same as every heading since section 17) instead of sentence case. */
-button, .button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; background: linear-gradient(155deg, #2f8fd6, var(--primary) 70%); color: #fff; padding: .62rem 1.1rem; border: 1px solid transparent; border-radius: var(--radius-sm); font: inherit; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; text-decoration: none; cursor: pointer; margin-top: 1rem; white-space: nowrap; transition: background-color .14s ease, box-shadow .14s ease, transform .08s ease; }
-button:hover, .button:hover { background: var(--primary-hover); text-decoration: none; box-shadow: 0 8px 18px -6px rgba(29, 120, 194, .45); }
+/* Rounder again, on purpose -- Jordan's reference image was a visibly-rounded blue button
+   with a soft glow at rest, not the sharp 4px corners section 19 gave every control via
+   --radius-sm. Given its own value instead of a token: inputs/icon-buttons/alerts stay
+   sharp (nothing asked for those to change), only the button shape itself softened. */
+button, .button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; background: linear-gradient(155deg, #2f8fd6, var(--primary) 70%); color: #fff; padding: .62rem 1.1rem; border: 1px solid transparent; border-radius: 10px; font: inherit; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; text-decoration: none; cursor: pointer; margin-top: 1rem; white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(29, 120, 194, .4); transition: background-color .14s ease, box-shadow .14s ease, transform .08s ease; }
+button:hover, .button:hover { background: var(--primary-hover); text-decoration: none; box-shadow: 0 8px 20px -6px rgba(29, 120, 194, .55); }
 button:active, .button:active { transform: translateY(1px); }
-.button.secondary, button.secondary { background: #fff; color: var(--text-on-light); border-color: var(--border-strong); }
+.button.secondary, button.secondary { background: #fff; color: var(--text-on-light); border-color: var(--border-strong); box-shadow: none; }
 .button.secondary:hover, button.secondary:hover { background: var(--surface-muted); }
-button.danger, .button.danger { background: var(--danger); }
+button.danger, .button.danger { background: var(--danger); box-shadow: 0 4px 14px -4px rgba(185, 28, 28, .4); }
 button.danger:hover, .button.danger:hover { background: #991b1b; box-shadow: 0 8px 18px -6px rgba(153, 27, 27, .4); }
-.button.small, button.small { padding: .35rem .7rem; font-size: .85rem; margin-top: 0; }
+/* No resting glow on small buttons -- there are often several per page (one per table
+   row); the glow is for the one prominent action in a section, not every inline one. */
+.button.small, button.small { padding: .35rem .7rem; font-size: .85rem; margin-top: 0; box-shadow: none; }
 .page-actions .button, .card-header .button { margin-top: 0; }
 
 /* Buttons show a spinner in place of their label while a form submit is in flight. */

@@ -905,3 +905,34 @@ wasn't part of what was asked and reads wrong shouted in caps either way.
 |---|---|
 | Manual pass | Desktop (1440px, one row); 900px (wraps to two rows at existing item boundaries, not mid-word); mobile (375px, nav opened via the hamburger toggle — full vertical stack checked, not just the collapsed state) |
 | Signed in throughout | |
+
+## 22. Buttons rounded back, with a glow — but only the ones that should have one
+
+Reference image this time: a rounded blue button with a visible glow sitting under it,
+not the sharp-cornered flat style section 19 gave every button. Not a contradiction of
+the military direction — 19's heading/nav uppercase treatment and the blue recolor stay;
+this is specifically the button *shape*, which apparently went sharper than wanted.
+
+`button, .button` stopped referencing `--radius-sm` (used today by inputs, icon buttons,
+alerts — none of which this request touched) and got its own `border-radius: 10px`, plus
+a resting `box-shadow` glow in the new primary blue, not just on `:hover` like before.
+
+**Didn't put the glow on every button, on purpose.** A table full of row actions (Edit,
+Deactivate — Manage Users has eight rows, each with two) all glowing blue/red at once
+would be noise, not emphasis — the reference image was one prominent CTA, not a table.
+So:
+- `.secondary` (white, e.g. "Advanced search," "Edit"): `box-shadow: none`. It's meant to
+  recede next to whatever the real primary action is.
+- `.small` (row actions): `box-shadow: none`, same reasoning, independent of color.
+- `.danger` does keep a glow, but its own red-tinted one (`rgba(185, 28, 28, .4)`,
+  matching `--danger`) instead of inheriting the base rule's blue — a danger button glowing
+  the wrong color would read as a bug, not a style choice.
+
+Net effect: the one prominent action per section (New Ticket, Create User, Sign In,
+Create Ticket) gets the rounded-and-glowing treatment the reference showed; everything
+secondary or repeated-per-row stays flat.
+
+| Check | Result |
+|---|---|
+| Manual pass | Sign-in button (zoomed in, compared directly against the reference image's proportions); Dashboard's New Ticket; Manage Users (Create User glows, Edit/Deactivate per row do not) — desktop and mobile (375px); `scrollWidth === clientWidth` on mobile |
+| Signed in throughout | |
