@@ -20,14 +20,19 @@
        sit on --primary-soft directly, which only works with dark text on a light page. A
        translucent wash reads correctly against the new dark surfaces without needing to
        override every nested element's text color back to dark. */
-    --highlight: rgba(154, 52, 18, .18);
-    --primary: #9a3412;
-    --primary-hover: #7c2d12;
-    --primary-soft: #fbe7da;
+    --highlight: rgba(29, 120, 194, .18);
+    /* Blue instead of copper -- "no orange," buttons and the active-nav border now match
+       instead of being two different oranges (--primary copper vs --sidebar-accent gold).
+       Contrast-checked same as section 16: #1d78c2 vs white 4.65:1, vs the dark surfaces
+       3.27-3.63:1 -- actually better than the old copper managed against the same dark
+       surfaces (2.08-2.31:1), not just a recolor. */
+    --primary: #1d78c2;
+    --primary-hover: #155a91;
+    --primary-soft: #dce9f5;
     --sidebar: #121417;
     --sidebar-text: #aab1bb;
     --sidebar-active: #1e2127;
-    --sidebar-accent: #f0a846;
+    --sidebar-accent: #4d9fe0;
     --accent: #0e7490;
     --accent-soft: #e0f4f8;
     --success: #15803d; --success-soft: #dcfce7;
@@ -39,7 +44,7 @@
     --radius: 11px;
     --radius-lg: 15px;
     --shadow: 0 1px 2px rgba(20, 22, 26, .08), 0 2px 4px rgba(20, 22, 26, .06);
-    --shadow-lg: 0 20px 45px -14px rgba(60, 28, 12, .35), 0 8px 18px -10px rgba(60, 28, 12, .2);
+    --shadow-lg: 0 20px 45px -14px rgba(12, 35, 60, .35), 0 8px 18px -10px rgba(12, 35, 60, .2);
     --font-sans: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui,
         -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
@@ -94,7 +99,7 @@ p { margin: 0 0 .75rem; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip-link { position: absolute; left: -999px; top: 0; background: var(--primary); color: #fff; padding: .5rem 1rem; z-index: 50; }
 .skip-link:focus { left: 1rem; }
-:focus-visible { outline: 3px solid rgba(154, 52, 18, .45); outline-offset: 2px; }
+:focus-visible { outline: 3px solid rgba(29, 120, 194, .45); outline-offset: 2px; }
 ::selection { background: var(--primary); color: #fff; }
 
 /* Scrollbars: thin, tinted to the theme instead of the OS default. */
@@ -131,7 +136,7 @@ p { margin: 0 0 .75rem; }
 .top-nav .brand { margin: .2rem 1rem .2rem 0; }
 .top-nav a:not(.brand) { display: inline-flex; align-items: center; gap: .55rem; padding: .55rem .85rem; border-radius: var(--radius-sm); color: var(--sidebar-text); font-family: var(--font-serif); font-weight: 700; white-space: nowrap; }
 .top-nav a:not(.brand):hover { background: var(--sidebar-active); color: #fff; text-decoration: none; }
-.top-nav a[aria-current="page"] { background: rgba(240, 168, 70, .14); color: #fff; box-shadow: inset 0 -3px 0 var(--sidebar-accent); }
+.top-nav a[aria-current="page"] { background: rgba(77, 159, 224, .14); color: #fff; box-shadow: inset 0 -3px 0 var(--sidebar-accent); }
 .nav-divider { width: 1px; align-self: stretch; margin: .3rem .5rem; background: rgba(255, 255, 255, .14); }
 
 .brand { display: flex; align-items: center; gap: .6rem; color: #fff; font-family: var(--font-serif); font-weight: 700; font-size: 1.2rem; }
@@ -314,7 +319,7 @@ a.stat:hover { text-decoration: none; transform: translateY(-2px); box-shadow: v
 /* ---------- Forms ---------- */
 label { display: block; font-weight: 600; font-size: .88rem; margin: 1rem 0 .35rem; }
 input, select, textarea { width: 100%; padding: .62rem .8rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: inherit; color: var(--text-on-light); background: #fff; transition: border-color .12s, box-shadow .12s; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(154, 52, 18, .16); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29, 120, 194, .16); }
 textarea { min-height: 8rem; resize: vertical; }
 .field-hint { font-size: .8rem; color: var(--text-muted); margin-top: .3rem; }
 .char-count { float: right; font-weight: 400; color: var(--text-muted); }
@@ -329,8 +334,11 @@ textarea { min-height: 8rem; resize: vertical; }
 .field-icon > .icon { position: absolute; z-index: 1; top: 50%; left: .85rem; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
 .field-icon input { padding-left: 2.6rem; }
 
-button, .button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; background: linear-gradient(155deg, #b2560f, var(--primary) 70%); color: #fff; padding: .62rem 1.1rem; border: 1px solid transparent; border-radius: var(--radius-sm); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; margin-top: 1rem; white-space: nowrap; transition: background-color .14s ease, box-shadow .14s ease, transform .08s ease; }
-button:hover, .button:hover { background: var(--primary-hover); text-decoration: none; box-shadow: 0 8px 18px -6px rgba(154, 52, 18, .45); }
+/* Military-button treatment to match the sign-in page / airforce.com reference (section
+   15): sharper corners than the rest of the app's rounded controls, uppercase tracked
+   labels (same as every heading since section 17) instead of sentence case. */
+button, .button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; background: linear-gradient(155deg, #2f8fd6, var(--primary) 70%); color: #fff; padding: .62rem 1.1rem; border: 1px solid transparent; border-radius: 4px; font: inherit; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; text-decoration: none; cursor: pointer; margin-top: 1rem; white-space: nowrap; transition: background-color .14s ease, box-shadow .14s ease, transform .08s ease; }
+button:hover, .button:hover { background: var(--primary-hover); text-decoration: none; box-shadow: 0 8px 18px -6px rgba(29, 120, 194, .45); }
 button:active, .button:active { transform: translateY(1px); }
 .button.secondary, button.secondary { background: #fff; color: var(--text-on-light); border-color: var(--border-strong); }
 .button.secondary:hover, button.secondary:hover { background: var(--surface-muted); }

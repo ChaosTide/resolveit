@@ -802,3 +802,49 @@ just a claim here.
 |---|---|
 | Manual pass | `ticket-edit.php` loads clean, scrolls up/down repeatedly without visible overlap in this session's testing; topbar still sticky, still blurred, still functions |
 | Not verified | The original glitch itself was never reproduced here to confirm the fix against it directly — ask Jordan to confirm on their end |
+
+## 19. Copper to blue, and a military button treatment
+
+Two related asks, same session: the active-nav-tab border and the buttons were two
+different oranges (`--sidebar-accent` gold vs. `--primary` copper) that didn't match each
+other, and — separately — buttons should look more like the sign-in page / airforce.com
+reference (section 15) instead of the rest of the app's plain rounded-pill style.
+
+**Color: `--primary` copper → blue**, contrast-checked the same way as every other token
+change this session, not picked by eye:
+
+| Token | Old | New |
+|---|---|---|
+| `--primary` | `#9a3412` | `#1d78c2` |
+| `--primary-hover` | `#7c2d12` | `#155a91` |
+| `--primary-soft` | `#fbe7da` | `#dce9f5` |
+| `--sidebar-accent` | `#f0a846` | `#4d9fe0` |
+| `--highlight` | `rgba(154, 52, 18, .18)` | `rgba(29, 120, 194, .18)` |
+
+`#1d78c2` vs. white: 4.65:1 (passes AA). vs. the dark surfaces from section 16: 3.27-3.63:1
+— actually *better* than the old copper managed against those same dark surfaces
+(2.08-2.31:1), since copper was never picked with a dark page in mind and blue was.
+Every hardcoded rgba mirror of the old copper (focus ring, button hover shadow, input
+focus shadow, the active-nav-tab background tint, `--shadow-lg`) was tracked down and
+updated too — same discipline as section 3's original re-theme ("grepped for every old
+hex/rgb literal afterward to make sure none were missed"), not just the named tokens.
+`--accent` (teal, used for the sign-in page's HUD corner brackets) was left alone — it
+already reads as blue-adjacent, not orange, so it wasn't what was being complained about.
+
+Left untouched, same reasoning as every previous pass: semantic status colors, and the
+`logo-mark.png` asset itself (a fixed orange PNG, not a CSS color — recoloring it would
+need a new image or a CSS filter experiment, a bigger separate conversation, and it
+wasn't named in the ask).
+
+**Buttons: sharper and uppercase.** `button, .button`'s `border-radius` went from `var(
+--radius-sm)` (7px, same rounding as the rest of the app) to a flat `4px`, and
+`text-transform: uppercase; letter-spacing: .04em;` was added — the same tracked-caps
+treatment section 17 already gave every heading, now on button labels too (`SIGN IN`,
+`CREATE TICKET`, `APPLY`). Every button variant (`.secondary`, `.danger`, `.small`)
+inherits both automatically since none of them override `border-radius` or
+`text-transform` — one change, not four.
+
+| Check | Result |
+|---|---|
+| Manual pass | Sign-in button; Tickets page (Create Ticket, Advanced Search, Apply, Refresh, Export CSV, the active "All" filter chip, the active Tickets nav-tab border — confirmed it now matches the buttons instead of being a second orange) — desktop and mobile (375px, checked `ADVANCED SEARCH` specifically for wrap/overflow on the longest button label); `scrollWidth === clientWidth` on mobile |
+| Signed in throughout | |
