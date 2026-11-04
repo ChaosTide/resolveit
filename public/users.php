@@ -61,9 +61,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $organizations = organization_options($pdo);
-$users = $pdo->query('SELECT u.id, u.name, u.email, o.name AS organization, u.active, u.created_at, r.name AS role
+// Unlike the create-user dropdown above (active organizations only, so nobody gets newly
+// assigned to a retired one), the filter includes inactive organizations too -- someone
+// already in one should still be findable. Same approach tickets.php takes for its filter.
+$allOrganizations = $pdo->query('SELECT id, name FROM organizations ORDER BY name')->fetchAll();
+$roleNames = ['employee' => 'Employee', 'technician' => 'Technician', 'administrator' => 'Administrator'];
+$sortOptions = [
+    'name' => 'Name (A-Z)', 'role' => 'Role', 'organization' => 'Organization', 'created' => 'Newest first',
+];
+$filters = [
+    'role' => array_key_exists($_GET['role'] ?? '', $roleNames) ? $_GET['role'] : null,
+    'organization' => ($_GET['organization'] ?? '') === 'none' ? 'none' : valid_id($_GET['organization'] ?? null),
+    'sort' => array_key_exists($_GET['sort'] ?? '', $sortOptions) ? $_GET['sort'] : 'name',
+];
+// Sort keys are whitelisted above, never interpolated from raw input.
+$orderBy = [
+    'name' => 'u.name',
+    'role' => "CASE r.name WHEN 'administrator' THEN 0 WHEN 'technician' THEN 1 ELSE 2 END, u.name",
+    'organization' => 'CASE WHEN o.name IS NULL THEN 1 ELSE 0 END, o.name, u.name',
+    'created' => 'u.created_at DESC, u.name',
+][$filters['sort']];
+$where = ['1 = 1'];
+$params = [];
+if ($filters['role']) {
+    $where[] = 'r.name = ?';
+    $params[] = $filters['role'];
+}
+if ($filters['organization'] === 'none') {
+    $where[] = 'u.organization_id IS NULL';
+} elseif ($filters['organization']) {
+    $where[] = 'u.organization_id = ?';
+    $params[] = $filters['organization'];
+}
+$stmt = $pdo->prepare("SELECT u.id, u.name, u.email, o.name AS organization, u.active, u.created_at, r.name AS role
     FROM users u JOIN roles r ON r.id = u.role_id LEFT JOIN organizations o ON o.id = u.organization_id
-    ORDER BY u.name')->fetchAll();
+    WHERE " . implode(' AND ', $where) . " ORDER BY $orderBy");
+$stmt->execute($params);
+$users = $stmt->fetchAll();
+$hasFilters = $filters['role'] !== null || $filters['organization'] !== null;
 $roleBadges = ['administrator' => ' status-assigned', 'technician' => ' status-open'];
 $me = (int) current_user()['id'];
 $pageTitle = 'Manage Users';
@@ -118,6 +153,39 @@ require __DIR__ . '/partials/header.php';
     <button><?= icon('plus') ?>Create User</button>
 </form>
 </section>
+<form class="card filters" method="get" action="users.php">
+    <div class="filter-row">
+        <div class="filter">
+            <label for="f-role">Role</label>
+            <select id="f-role" name="role" data-autosubmit>
+                <option value="">Any role</option>
+                <?= select_options($roleNames, $filters['role']) ?>
+            </select>
+        </div>
+        <div class="filter">
+            <label for="f-organization">Organization</label>
+            <select id="f-organization" name="organization" data-autosubmit>
+                <option value="">Any organization</option>
+                <?= select_options(
+                    ['none' => 'No organization'] + array_column($allOrganizations, 'name', 'id'),
+                    $filters['organization']
+                ) ?>
+            </select>
+        </div>
+        <div class="filter">
+            <label for="f-sort">Sort</label>
+            <select id="f-sort" name="sort" data-autosubmit>
+                <?= select_options($sortOptions, $filters['sort']) ?>
+            </select>
+        </div>
+        <?php if ($hasFilters) : ?>
+            <a class="button secondary small" href="users.php">Clear</a>
+        <?php endif; ?>
+    </div>
+</form>
+<p class="result-count">
+    <?= count($users) ?> user<?= count($users) === 1 ? '' : 's' ?><?= $hasFilters ? ' match your filters' : '' ?>
+</p>
 <div class="table-wrap">
 <table>
     <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>

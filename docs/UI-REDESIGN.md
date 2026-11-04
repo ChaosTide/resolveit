@@ -507,3 +507,55 @@ independently instead of being one text node next to the icon.
 Sources consulted: the Ashe WordPress theme screenshot, for the general shape (big
 logotype over an atmospheric scene) only — no code, fonts, or images from it were used;
 see above for why.
+
+## 13. Manage Users: filter by role and organization, three sort orders
+
+Noah's feedback (relayed by Jordan): no way to narrow the user list down, comparable to
+how AD groups accounts by OU or applies policy by GPO — mainly a problem once the
+employee pool is seeded larger to mimic a real company. In scope for Task 6 (this is the
+user/role-access page); out of scope was a literal "company column" sort, since the
+project already has a real `organization_id` per user, just nothing on this page to
+filter or sort by it.
+
+**What it became** (`public/users.php`): a `.filters` card — same pattern as
+`tickets.php`'s "More filters" row (`select[data-autosubmit]`, no new JS, `app.js`
+already submits the form on change) — sitting between "Create user" and the table.
+
+- **Role** — any / employee / technician / administrator. Exact match on `roles.name`.
+- **Organization** — any / no organization / each organization, including inactive ones.
+  Deliberately pulled straight from `organizations` rather than reusing
+  `organization_options()` (the Create-user dropdown above it) — that helper only lists
+  *active* organizations, right for assigning someone new but wrong for a filter, since
+  someone already in a now-retired organization should still be findable. Same
+  active-only-vs-all distinction `tickets.php` already makes for its own organization
+  filter.
+- **Sort** — Name (default, unchanged), Role (administrator → technician → employee,
+  via a `CASE` rank, then name), Organization (alphabetical, no-organization accounts
+  last), Newest first. All four are a plain whitelisted-key → SQL-expression array, the
+  same shape `ticket_order_sql()` already uses in `app/tickets.php` — not pulled into a
+  shared helper since, unlike tickets, this is the only page that needs it.
+
+Result count line added above the table ("8 users" / "3 users match your filters"),
+matching the wording `tickets.php` uses for the same thing.
+
+**Verified against real data, not just the one role already in the room:** while testing,
+found an 8th account (`John Smith`, Employee, organization TestCompany) already live in
+the dev database that hadn't shown up in earlier screenshots — not something this change
+added or touched, just confirms the filter/sort was checked against actual mixed data
+(two organizations, two roles represented) rather than only the all-administrator roster
+visible before.
+
+| Check | Result |
+|---|---|
+| `phpcs` (`public/users.php`) | 0 errors, 0 warnings |
+| Manual pass | Role=Administrator filter (7/8 correct); Organization=No organization filter (correctly excludes the TestCompany account, not just anyone missing an org visually); Sort=Organization (TestCompany before UWF IT HELPDESK TEAM, alphabetical; no-organization accounts last); Sort=Role (all 7 administrators grouped before the one employee); Clear link resets all three |
+
+**Not built: an in-app chat feature.** Also raised by Noah, who immediately questioned
+it himself (real teams mostly already use Teams/Slack for that). This app already has a
+communication channel scoped to where it actually belongs — ticket conversation replies
+(section on `ticket.php`'s reply "bubbles," added earlier in this doc) — a separate
+general user-to-user chat would be a materially bigger, differently-scoped feature with
+no spec yet (ticket-scoped? company-wide? DMs?). Worth a one-paragraph change request if
+the team actually wants it, same process `docs/STATUS-UPDATE-NOAH.md` already describes
+for anything touching "frozen" Tasks 5/6 — not something to guess the shape of and build
+unasked.
