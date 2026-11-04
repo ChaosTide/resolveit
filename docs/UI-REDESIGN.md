@@ -888,3 +888,20 @@ causes apart.
 |---|---|
 | Manual pass | Dashboard (KPI tiles, My queue, Needs attention, Recent activity), Tickets (filter card, table-wrap) — desktop and mobile (375px); `scrollWidth === clientWidth` on mobile |
 | Signed in throughout | |
+
+## 21. Top nav labels: the one piece of text still in sentence case
+
+Pointed at the "NEW TICKET" button specifically and asked for "Dashboard, Tickets,
+Knowledge Base, etc." to match. Headings went uppercase in section 17, buttons in
+section 19 — the top-nav links (`Dashboard`, `Tickets`, `New Ticket`, `Knowledge Base`,
+`Manage Users`, `Reports`, `Settings`) were the one remaining piece of UI text still in
+sentence case, since `.top-nav a` is its own rule, not a heading or a `<button>`. Added
+`text-transform: uppercase; letter-spacing: .03em;` there (the heading tracking value,
+not the button one — same serif font-family as headings, matches that pairing). Left
+`.brand` ("ResolveIT" next to the logo) alone — a product name, not a nav label, so it
+wasn't part of what was asked and reads wrong shouted in caps either way.
+
+| Check | Result |
+|---|---|
+| Manual pass | Desktop (1440px, one row); 900px (wraps to two rows at existing item boundaries, not mid-word); mobile (375px, nav opened via the hamburger toggle — full vertical stack checked, not just the collapsed state) |
+| Signed in throughout | |
