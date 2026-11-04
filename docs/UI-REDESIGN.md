@@ -464,3 +464,46 @@ on the "Created" KPI tile from an already-open reports.php.
 | `phpcs` (`reports.php`) | 0 errors, 0 warnings |
 | `tests/check-local.ps1` | 137 / 137 pass (one assertion updated: `<h2>$_.` → `<span class="report-number">$_</span>`, matching the new markup — the behavior it checks, that all 8 numbered reports render, is unchanged) |
 | Manual pass | expand/collapse on click; fresh-load deep link opens the right report; same-page KPI-tile click opens the right report (the actual hashchange bug, not just the easy case); mobile width has no horizontal overflow (`document.documentElement.scrollWidth` checked directly, not just eyeballed); widest table (SLA compliance, 8 columns) renders full-width when expanded |
+
+## 12. Sign-in page, one more pass — bigger masthead, atmosphere instead of flat gradient
+
+Section 9 cut the sign-in page down to one centered card on a flat dark radial gradient,
+which fixed the "generic SaaS split-screen" problem but read as flat/empty on its own —
+Jordan's words, "boring," pointing at a WordPress blog theme ("Ashe," a free theme off
+WordPress.org — `ashe.2.275.zip`) as the kind of look wanted instead: a big logotype
+sitting over an atmospheric full-bleed scene.
+
+**Not reused as-is, on purpose.** Ashe is a full WordPress theme — PHP template files,
+`functions.php`, a WooCommerce stylesheet, none of it compatible with this plain-PHP app —
+and its screenshot is the theme's own bundled stock photography, not licensed for reuse
+outside that theme. Extracted it to a scratchpad folder to look at `screenshot.jpg` only
+(the WP theme-chooser preview image), then rebuilt the *idea* — big wordmark over a rich
+background scene — with this project's own assets:
+
+- **Background:** the old single `::after` (a flat teal circle blob) is now two soft
+  `radial-gradient` glows (copper top-left, cyan bottom-right, both existing brand tokens)
+  layered under the existing dot-grid texture. Still zero images or fonts loaded over the
+  network — this page's CSP is `default-src 'self'` (see the file header comment in
+  `style.css`), same constraint noted in section 8.
+- **In place of a hero photo:** `.auth-layout::after` now renders a huge (640px),
+  barely-there (8% opacity) copy of the project's own `logo-mark.png`, rotated and bled off
+  the right edge — gives the page depth/a "scene" the way Ashe's photo does, using artwork
+  this project already owns instead of a stranger's stock photography.
+- **Brand mark:** was a small single-line `[icon] ResolveIT` lockup. Now a proper masthead —
+  bigger badge (58px), "ResolveIT" set large in the serif (2.15rem) with a small tracked-caps
+  kicker underneath ("IT SERVICE DESK"), echoing Ashe's big script wordmark + subtitle
+  without copying its script typeface (this app loads system fonts only, same CSP reason).
+
+New rules: `.auth-brand-text`, `.auth-wordmark`, `.auth-kicker` in
+[`style.css`](../public/assets/style.css); markup split into a wrapped `<span>` structure in
+[`header.php`](../public/partials/header.php) so the wordmark and kicker can be styled
+independently instead of being one text node next to the icon.
+
+| Check | Result |
+|---|---|
+| `phpcs` (`header.php`) | 0 errors, 0 warnings |
+| Manual pass | signed in end-to-end after the change (confirms the markup split didn't break the form); desktop width (1440px) and mobile width (375px) both checked in-browser |
+
+Sources consulted: the Ashe WordPress theme screenshot, for the general shape (big
+logotype over an atmospheric scene) only — no code, fonts, or images from it were used;
+see above for why.

@@ -178,3 +178,24 @@ Site address on this PC: **http://127.0.0.1:8080**
 ## 7. Note for the team write-up
 
 The team task list says **MySQL** and **Bootstrap**. What was actually built uses **Microsoft SQL Server**, a **hand-written stylesheet**, and **JavaScript** (not Java). The design-choices section should describe the real stack above.
+
+---
+
+## 8. Sources for the write-up
+
+Two references Jordan supplied, plus a matching guide for CSS and for JavaScript (same
+author/publisher as the HTML5 one) so all three front-end languages in the stack — not
+just HTML — trace back to a citable source for the design-choices section.
+
+| Language | Source | Backs up |
+|---|---|---|
+| HTML5 | Nixon, R. *HTML 5 Programming: A QuickStudy Laminated Reference Guide* (2nd ed.). BarCharts, 2023. ISBN 978-1423246671. | Semantic form markup and HTML5 input/attribute usage (`type="email"`, `autocomplete`, `required`, `maxlength`) — see [login.php](../public/login.php) and [ticket-create.php](../public/ticket-create.php). |
+| HTML + CSS | Ruvalcaba, Z., Boehm, A., & Delamater, M. *Murach's HTML and CSS* (6th ed.). Mike Murach & Associates, 2024. ISBN 978-1943873210. | Overall page structure and the responsive, box-model-based layout approach in [style.css](../public/assets/style.css). (This is the book's *current* title/edition — it dropped "5"/"3" since those are now just the standard HTML/CSS; same book behind the link Jordan sent, which was titled "Murach's HTML CSS," not "HTML5 and CSS3.") |
+| CSS | Nixon, R. *CSS – Cascading Style Sheets: A QuickStudy Laminated Reference Guide* (3rd ed.). BarCharts. ISBN 978-1423250616. | Custom properties (the `:root { --primary: ... }` token system), Flexbox (`.topbar`, `.auth-brand-mark`), Grid (`.grid`, `.kb-list`), and the `@media` responsive rules — all in [style.css](../public/assets/style.css). |
+| JavaScript | Nixon, R. *JavaScript: A QuickStudy Laminated Reference Guide*. BarCharts. ISBN 1423251083. | DOM selection and events (`querySelectorAll`, `addEventListener`, `classList`) used throughout [app.js](../public/assets/app.js) — see section 3 above. |
+
+Three of the four are the same author/series (Robin Nixon, BarCharts QuickStudy), so
+HTML5/CSS/JavaScript cite as one consistent set; Murach's is the deeper reference and is
+where the page-level HTML+CSS structure traces back to. None of this code was copied from
+any of the four — they're general-reference guides, not templates — this table documents
+which standard references the actual HTML/CSS/JS here lines up with.

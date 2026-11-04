@@ -150,7 +150,11 @@ p { margin: 0 0 .75rem; }
     position: relative;
     overflow: hidden;
     color: #fff;
-    background: radial-gradient(circle at 50% -10%, #3a1f0f 0%, var(--sidebar) 55%), var(--sidebar);
+    background:
+        radial-gradient(ellipse 820px 640px at 6% -4%, rgba(178, 86, 15, .5), transparent 60%),
+        radial-gradient(ellipse 760px 600px at 103% 103%, rgba(14, 116, 144, .4), transparent 62%),
+        radial-gradient(circle at 50% -10%, #3a1f0f 0%, var(--sidebar) 55%),
+        var(--sidebar);
 }
 .auth-layout::before {
     content: "";
@@ -161,12 +165,20 @@ p { margin: 0 0 .75rem; }
     mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 0%, transparent 72%);
     pointer-events: none;
 }
+/* A huge, barely-there version of the real logo mark bleeding off the edge, standing in for
+   a hero photo -- gives the scene depth without a stock image (none are licensed for this
+   project) and without the network request a real photo/font would cost under this page's
+   CSP (default-src 'self', see file header). */
 .auth-layout::after {
     content: "";
-    position: absolute; width: 440px; height: 440px; border-radius: 50%;
-    right: -160px; bottom: -180px;
-    background: radial-gradient(circle, rgba(14, 116, 144, .4), transparent 70%);
-    filter: blur(6px);
+    position: absolute;
+    top: 50%; right: -9%;
+    width: 640px; height: 640px;
+    transform: translateY(-50%) rotate(-10deg);
+    background-image: url("logo-mark.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    opacity: .08;
     pointer-events: none;
 }
 .auth-center {
@@ -179,9 +191,12 @@ p { margin: 0 0 .75rem; }
     position: relative;
     z-index: 1;
 }
-.auth-brand-mark { display: flex; align-items: center; gap: .75rem; font-size: 1.3rem; font-weight: 700; margin-bottom: 2rem; }
-.auth-brand-mark .logo { width: 48px; height: 48px; border-radius: 14px; }
-.auth-brand-mark .logo .icon { width: 40px; height: 40px; }
+.auth-brand-mark { display: flex; align-items: center; gap: 1rem; margin-bottom: 2.5rem; }
+.auth-brand-mark .logo { width: 58px; height: 58px; border-radius: 16px; }
+.auth-brand-mark .logo .icon { width: 48px; height: 48px; }
+.auth-brand-text { display: flex; flex-direction: column; gap: .2rem; }
+.auth-wordmark { font-family: var(--font-serif); font-size: 2.15rem; font-weight: 700; letter-spacing: -.01em; line-height: 1; }
+.auth-kicker { font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(255, 255, 255, .55); }
 .auth-main { width: 100%; max-width: 400px; color: var(--text); }
 .auth-main .card { padding: 2.25rem; border-radius: var(--radius-lg); box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .5); }
 .auth-card { border-top: 3px solid var(--primary); }
