@@ -736,3 +736,24 @@ theme-aware either way; dark-on-dark printing is a pre-existing, unrelated gap).
 
 Sources: none external this time — this one was entirely about the existing token
 system's own coverage, not a new design reference.
+
+## 17. Uppercase, tracked headings everywhere
+
+Jordan pointed at the sign-in page's "SIGN IN" treatment (section 15's `.auth-main h1`
+override: uppercase, `.03em` letter-spacing) and asked for it on every page, not just
+that one. Moved it from a one-page override into the shared rule every heading already
+uses: `h1, h2, h3 { ... font-family: var(--font-serif); }` (section 3's "one consistent
+text style across heading levels" rule) now also carries `text-transform: uppercase;
+letter-spacing: .03em;`. `.auth-main h1` keeps only its font-size override (1.55rem,
+sized for the narrow sign-in card); the uppercase/tracking part is no longer duplicated
+now that the shared rule covers it.
+
+Table headers, stat labels, and nav links were already uppercase on their own (separate,
+older rules — `th`, `.stat .meta`, `.top-nav a`) before this change; this just brings
+page titles and card headers (`<h1>`, `<h2>` — "Welcome back", "Manage Users", card
+headers like "Create user") in line with what was already true everywhere else, so it
+now reads as one system instead of titles being the one lower-case holdout.
+
+| Check | Result |
+|---|---|
+| Manual pass | Dashboard, Knowledge Base, Manage Users — desktop and mobile (375px). Checked specifically for wrapping on the longer titles/card headers at mobile width; none found. Signed in throughout. |
