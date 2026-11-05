@@ -27,8 +27,7 @@ app/bootstrap.php
   |-- app/tickets.php      ticket_query_sql(), ticket_sort_options(), assignee_filter()
   `-- app/ui.php           status_badge(), ticket_table(), select_options(), icon()...
   v
-Microsoft SQL Server (WORKSTATION\JLB282, Windows Auth — local)
-  or SQL Server 2022 container (resolveit_app login — Docker)
+ SQL Server 2022 container (resolveit_app login — Docker)
 ```
 
 Full breakdown of every language used (HTML/CSS/JS/PHP/SQL) is in

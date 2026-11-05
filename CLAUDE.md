@@ -80,11 +80,27 @@ deactivation by an admin takes effect immediately, not just on next login).
   (`azure_team_identity()` / `azure_team_login()`) instead of a password form.
 
 **`app/` is shared logic, never web-reachable** (kept outside Apache's document root, which points at
-`public/` only): `http.php` has `e()`/`redirect()`/`flash()`/CSRF; `auth.php` has login, lockout, and
-`require_role()`; `workflow.php` enforces the ticket status machine server-side (Open → Assigned →
-In Progress → Resolved → Closed, one step at a time, Resolved may reopen to In Progress, Closed is
-final) so tampering with the form can't skip a step; `ui.php` has the shared table/badge/icon builders
-used across multiple `public/` pages — check there before writing a new one.
+`public/` only), loaded in the fixed order above:
+- `http.php` — `e()`/`redirect()`/`flash()`/`csrf_token()`/`verify_csrf()`.
+- `db.php` — opens the PDO connection (`pdo_sqlsrv`, real prepared statements, throws on error).
+- `validation.php` — `clean_text()`/`valid_id()`/`validate_ticket_input()`/`unique_error()` (turns a
+  SQL Server unique-constraint violation, code `23000`, into a friendly message on `settings.php`).
+- `auth.php` — `login_user()`, `refresh_session_user()`, lockout (`login_locked_out()`,
+  `client_ip()` — trusts the `CF-Connecting-IP` header only when the direct connection is loopback, so
+  the Cloudflare tunnel can't make every visitor share one IP bucket), `require_role()`, and
+  `can_view_ticket()` (the employee-vs-own-ticket ownership check; technicians/admins see every ticket).
+- `workflow.php` — `allowed_status_ids()`/`workflow_error()` enforce the status machine server-side
+  (Open → Assigned → In Progress → Resolved → Closed, one step at a time, Resolved may reopen to
+  In Progress, Closed is final) so tampering with the form can't skip a step.
+- `audit.php` — `audit_log()`, the only way rows reach `admin_audit_log` (shown on
+  `settings.php?tab=audit`).
+- `reports.php` and `tickets.php` — **the shared query layer**: `ticket_sla_base()`/`ticket_list_sql()`
+  (SLA due time and state, "waiting on requester", "past due") and `ticket_query_sql()`/
+  `ticket_sort_options()`/`ticket_stamp()` build on each other and are reused by `dashboard.php`,
+  `tickets.php`, `search.php`, and the 8 reports in `reports.php` — a change to SLA logic or a new
+  filterable column usually belongs here, not in any one `public/` page.
+- `ui.php` — the shared table/badge/icon/pagination builders used across multiple `public/` pages
+  (`status_badge()`, `ticket_table()`, `icon()`, `logo_mark()`...) — check there before writing a new one.
 
 **Styling is one file, token-driven:** all CSS is in `public/assets/style.css`, no framework. Colors,
 radii, and shadows are CSS custom properties in the `:root` block — a "change X everywhere" request is
@@ -102,6 +118,10 @@ within 15 minutes. Full threat-model writeup and the one real bug found (a login
 fixed in `1f56f6f`) are in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
 
 **Database:** SQL Server, 12 tables / 14 foreign keys, defined in `database/schema.sql` plus
-`database/migrations/001`–`006`. Core tables: `users`/`roles`/`organizations`, `tickets`, the fixed
-reference lists `statuses`/`priorities`/`categories` (priorities carry the SLA-hours target), and the
-append-only `ticket_notes`/`ticket_history`/`admin_audit_log`/`login_attempts`.
+`database/migrations/001`–`006` (`001_admin_audit_log`, `002_priority_sla`, `003_login_attempts`,
+`004_password_changed_at` — makes a password reset/deactivation sign the user out immediately via
+`refresh_session_user()` above, `005_help_desk_features` — due dates, first-response/close tracking,
+`kb_articles`, `006_organizations` — moved requester department from free text to a real table). Core
+tables: `users`/`roles`/`organizations`, `tickets`, the fixed reference lists
+`statuses`/`priorities`/`categories` (priorities carry the SLA-hours target), `kb_articles` (knowledge
+base), and the append-only `ticket_notes`/`ticket_history`/`admin_audit_log`/`login_attempts`.
