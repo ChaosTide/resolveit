@@ -45,7 +45,7 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
 </header>
 <nav class="top-nav" id="top-nav" aria-label="Main navigation">
     <a class="brand" href="index.php">
-        <span class="logo" aria-hidden="true"><?= logo_mark() ?></span><span>ResolveIT</span>
+        <img src="assets/logo-mark.webp?v=<?= filemtime(__DIR__ . '/../assets/logo-mark.webp') ?>" alt="ResolveIT">
     </a>
     <a href="dashboard.php"<?= $navActive(['dashboard.php']) ?>><?= icon('dashboard') ?>Dashboard</a>
     <a href="tickets.php"<?= $navActive(['tickets.php', 'ticket.php', 'ticket-edit.php']) ?>>

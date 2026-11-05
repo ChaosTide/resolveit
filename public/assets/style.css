@@ -139,13 +139,12 @@ p { margin: 0 0 .75rem; }
 .top-nav .brand { margin: .2rem 1rem .2rem 0; }
 .top-nav a:not(.brand) { display: inline-flex; align-items: center; gap: .55rem; padding: .55rem .85rem; border-radius: var(--radius-sm); color: var(--sidebar-text); font-family: var(--font-serif); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
 .top-nav a:not(.brand):hover { background: var(--sidebar-active); color: #fff; text-decoration: none; }
-.top-nav a[aria-current="page"] { background: rgba(77, 159, 224, .14); color: #fff; box-shadow: inset 0 -3px 0 var(--sidebar-accent); }
+.top-nav a[aria-current="page"] { background: linear-gradient(155deg, #2f8fd6, var(--primary) 70%); color: #fff; box-shadow: 0 4px 14px -4px rgba(29, 120, 194, .5); }
 .nav-divider { width: 1px; align-self: stretch; margin: .3rem .5rem; background: rgba(255, 255, 255, .14); }
 
-.brand { display: flex; align-items: center; gap: .6rem; color: #fff; font-family: var(--font-serif); font-weight: 700; font-size: 1.2rem; }
+.brand { display: flex; align-items: center; }
 .brand:hover { text-decoration: none; }
-.logo { display: inline-grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(155deg, #b2560f, #7c2d12 75%); color: #fff4e4; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 4px 10px -2px rgba(0, 0, 0, .4); flex: none; }
-.logo .icon { width: 34px; height: 34px; }
+.brand img { display: block; height: 38px; width: auto; }
 
 /* transform: translateZ(0) forces its own GPU compositing layer. Without it, a sticky
    element with backdrop-filter can stop recompositing during scroll in Chromium and show
@@ -176,8 +175,8 @@ p { margin: 0 0 .75rem; }
    (faint giant logo mark, see git history) is replaced rather than layered under it. The
    banner already has its own baked-in "RESOLVE" wordmark, so auth-brand-mark is removed
    from header.php for this page instead of stacking a second, live-text one on top of it.
-   Still zero extra network requests -- local asset, same as logo-mark.png, same CSP reason
-   noted throughout this file. */
+   Still zero extra network requests -- local asset, same CSP reason noted throughout this
+   file. */
 .auth-layout {
     min-height: 100vh;
     display: flex;

@@ -165,13 +165,6 @@ function icon(string $name): string
         . ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ($paths[$name] ?? '') . '</svg>';
 }
 
-/** The brand mark (public/assets/logo-mark.png), cache-busted the same way as style.css/app.js. */
-function logo_mark(): string
-{
-    $mtime = filemtime(__DIR__ . '/../public/assets/logo-mark.png');
-    return '<img class="icon" src="assets/logo-mark.png?v=' . $mtime . '" alt="" width="64" height="64">';
-}
-
 /**
  * Ticket table used by the dashboard, ticket list, and search. Rows come from ticket_list_sql().
  * Staff see requester and SLA columns; employees see their own tickets without SLA details.

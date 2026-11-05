@@ -936,3 +936,62 @@ secondary or repeated-per-row stays flat.
 |---|---|
 | Manual pass | Sign-in button (zoomed in, compared directly against the reference image's proportions); Dashboard's New Ticket; Manage Users (Create User glows, Edit/Deactivate per row do not) — desktop and mobile (375px); `scrollWidth === clientWidth` on mobile |
 | Signed in throughout | |
+
+## 23. Removed the orange logo mark from the main nav
+
+Jordan: "remove the old logo here and change the formatting here" (the top-nav brand —
+`.brand` → `.logo` → `public/assets/logo-mark.png`). The icon was the one piece of chrome
+section 19's copper-to-blue pass couldn't touch — a fixed PNG, not a CSS color, noted at
+the time — so it kept showing the old orange gradient box after everything else went
+blue. Rather than commission or filter a new icon, removed it: `header.php`'s brand link
+is now just the "ResolveIT" text, given the same uppercase/tracked treatment as the
+headings and nav links from sections 17/21 (`text-transform: uppercase; letter-spacing:
+.04em;`) so it carries the identity on its own instead of leaning on an icon.
+
+Cleanup to match, same "don't leave orphaned code behind" discipline as every earlier
+pass: deleted `public/assets/logo-mark.png`, removed the now-unused `logo_mark()` helper
+from `app/ui.php`, and removed the dead `.logo` / `.logo .icon` CSS rules.
+
+| Check | Result |
+|---|---|
+| Manual pass | Top nav on every signed-in page (Dashboard, Tickets, a ticket, Knowledge Base, Manage Users) — brand reads "RESOLVEIT" in the uppercase serif, no orange box, no layout shift; still links to `index.php` |
+| `grep -r logo_mark\|logo-mark` | Only remaining hits are this doc and git history |
+
+## 24. A real logo, replacing the text-only brand from section 23
+
+Jordan supplied a finished logo (`public/assets/logo-mark.webp`, 2000x667, transparent
+background): a blue shield-and-circuit mark plus a "RESOLVEIT" wordmark baked into the
+image itself, "IT" already set in the same blue as the shield so it reads as one lockup.
+Swapped it in for the plain-text brand from section 23 — `.brand` now wraps an `<img>`
+instead of text, cache-busted with `filemtime()` the same way as `style.css`/`app.js`
+(matching the old `logo_mark()` helper's pattern before it was removed last section).
+Sized at `height: 38px; width: auto` to sit at roughly the same visual weight as the
+nav links beside it, given the source's 3:1 aspect ratio (≈112px wide at that height) —
+narrow enough not to crowd `DASHBOARD` / `TICKETS` / etc. at any width the nav already
+wraps at. The transparent background means it needs no color handling of its own against
+the dark `--sidebar` nav — unlike the old PNG, nothing here is hardcoded against the old
+copper palette, so a future color change to the app won't leave this one behind too.
+
+| Check | Result |
+|---|---|
+| `php -l public/partials/header.php` | No syntax errors |
+| Asset serves | `GET /assets/logo-mark.webp` → `200`, `image/webp`, matches source file size |
+| Still pending | Live visual confirmation in a signed-in session — blocked on the same disposable-account permission prompt as the Knowledge Base article (see chat) |
+
+## 25. The active nav tab gets the same glow as the buttons
+
+Jordan: "I want these to pop out like the buttons" (the top-nav tabs, next to a reference
+screenshot of the glowing New Ticket button from section 22). `.top-nav a[aria-current=
+"page"]` went from a flat translucent tint with an inset bottom border
+(`background: rgba(77, 159, 224, .14); box-shadow: inset 0 -3px 0 var(--sidebar-accent);`)
+to the same gradient fill and resting glow the buttons use
+(`linear-gradient(155deg, #2f8fd6, var(--primary) 70%)`, `box-shadow: 0 4px 14px -4px
+rgba(29, 120, 194, .5)` — a touch stronger than the button's `.4` alpha since the nav's
+own `--sidebar` background is darker than the page background buttons normally sit on).
+Only the active tab changes; hover and resting-inactive tabs are untouched, same
+prominent-vs-secondary split as section 22.
+
+| Check | Result |
+|---|---|
+| Live CSS | `GET /assets/style.css` confirms the new rule is being served |
+| Still pending | Same as section 24 — live visual confirmation needs a signed-in session |
