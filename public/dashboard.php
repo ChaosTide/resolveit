@@ -65,49 +65,11 @@ $subtitle = $staff
 </div>
 
 <?php if ($staff) : ?>
-<div class="grid dashboard-grid">
-    <?= kpi_tile('Open tickets', $kpi['unresolved'], 'inbox', 'primary', 'tickets.php?view=open', 'Not yet resolved') ?>
-    <?= kpi_tile(
-        'Unassigned',
-        $kpi['unassigned'],
-        'user',
-        'violet',
-        'tickets.php?view=unassigned',
-        'Waiting for a technician'
-    ) ?>
-    <?= stat_group('At risk', 'alert', [
-        ['label' => 'Overdue', 'value' => $kpi['overdue'], 'tone' => 'danger', 'href' => 'tickets.php?view=overdue'],
-        [
-            'label' => 'Due in 4h', 'value' => $kpi['due_soon'], 'tone' => 'warning',
-            'href' => 'tickets.php?view=open&sort=due',
-        ],
-        [
-            'label' => 'Past due date', 'value' => $kpi['past_due'], 'tone' => 'danger',
-            'href' => 'tickets.php?view=pastdue',
-        ],
-    ]) ?>
-    <?= stat_group('Your day', 'user', [
-        ['label' => 'My queue', 'value' => $kpi['mine'], 'tone' => 'primary', 'href' => 'tickets.php?view=mine'],
-        [
-            'label' => 'Resolved today', 'value' => $kpi['resolved_today'], 'tone' => 'success',
-            'href' => 'tickets.php?view=resolved',
-        ],
-        [
-            'label' => 'Waiting on requester', 'value' => $kpi['waiting'], 'tone' => 'violet',
-            'href' => 'tickets.php?view=waiting',
-        ],
-    ]) ?>
-</div>
-
-<section class="card flush">
-    <div class="card-header"><h2>My queue</h2><a href="tickets.php?view=mine">View all</a></div>
-    <?= ticket_table($queue, true, 'Nothing assigned to you right now.') ?>
-</section>
-
-<section class="card flush">
-    <div class="card-header"><h2>Needs attention</h2><a href="tickets.php?view=overdue">Overdue list</a></div>
-    <?= ticket_table($attention, true, 'No overdue or unassigned tickets. The queue is healthy.') ?>
-</section>
+<?php
+// Staff dashboard = a menu on the left; clicking an item opens its panel on the right (app.js,
+// [data-dash-menu]). Each entry: [menu label, icon, tone, count shown in the menu or null, panel HTML].
+// Without JavaScript every panel simply shows, stacked, so nothing is lost.
+ob_start(); ?>
 <section class="card">
     <h2>Recent activity</h2>
     <?php if (!$activity) : ?><p class="meta">No ticket activity yet.</p><?php endif; ?>
@@ -124,9 +86,85 @@ $subtitle = $staff
     <?php endforeach; ?>
     </ul>
 </section>
+<?php
+$activityHtml = ob_get_clean();
+$dashPanels = [
+    'open' => ['Open tickets', 'inbox', 'primary', $kpi['unresolved'], kpi_tile(
+        'Open tickets',
+        $kpi['unresolved'],
+        'inbox',
+        'primary',
+        'tickets.php?view=open',
+        'Not yet resolved'
+    )],
+    'unassigned' => ['Unassigned', 'user', 'violet', $kpi['unassigned'], kpi_tile(
+        'Unassigned',
+        $kpi['unassigned'],
+        'user',
+        'violet',
+        'tickets.php?view=unassigned',
+        'Waiting for a technician'
+    )],
+    'risk' => ['At risk', 'alert', 'danger', $kpi['overdue'], stat_group('At risk', 'alert', [
+        ['label' => 'Overdue', 'value' => $kpi['overdue'], 'tone' => 'danger', 'href' => 'tickets.php?view=overdue'],
+        [
+            'label' => 'Due in 4h', 'value' => $kpi['due_soon'], 'tone' => 'warning',
+            'href' => 'tickets.php?view=open&sort=due',
+        ],
+        [
+            'label' => 'Past due date', 'value' => $kpi['past_due'], 'tone' => 'danger',
+            'href' => 'tickets.php?view=pastdue',
+        ],
+    ])],
+    'day' => ['Your day', 'clock', 'success', $kpi['resolved_today'], stat_group('Your day', 'user', [
+        ['label' => 'My queue', 'value' => $kpi['mine'], 'tone' => 'primary', 'href' => 'tickets.php?view=mine'],
+        [
+            'label' => 'Resolved today', 'value' => $kpi['resolved_today'], 'tone' => 'success',
+            'href' => 'tickets.php?view=resolved',
+        ],
+        [
+            'label' => 'Waiting on requester', 'value' => $kpi['waiting'], 'tone' => 'violet',
+            'href' => 'tickets.php?view=waiting',
+        ],
+    ])],
+    'queue' => ['My queue', 'tickets', 'primary', $kpi['mine'], '<section class="card flush">'
+        . '<div class="card-header"><h2>My queue</h2><a href="tickets.php?view=mine">View all</a></div>'
+        . ticket_table($queue, true, 'Nothing assigned to you right now.') . '</section>'],
+    'attention' => ['Needs attention', 'alert', 'warning', count($attention), '<section class="card flush">'
+        . '<div class="card-header"><h2>Needs attention</h2><a href="tickets.php?view=overdue">Overdue list</a></div>'
+        . ticket_table($attention, true, 'No overdue or unassigned tickets. The queue is healthy.') . '</section>'],
+    'activity' => ['Recent activity', 'chart', 'primary', null, $activityHtml],
+];
+// Opens on your own queue when you have one, otherwise on what needs attention.
+$dashDefault = $kpi['mine'] > 0 ? 'queue' : 'attention';
+?>
+<div class="dash-layout" data-dash-menu data-default="<?= $dashDefault ?>">
+    <div class="dash-menu" role="tablist" aria-orientation="vertical" aria-label="Dashboard sections">
+    <?php foreach ($dashPanels as $key => [$label, $iconName, $tone, $count]) : ?>
+        <button type="button" class="dash-menu-item tone-<?= $tone ?>" role="tab" id="dash-tab-<?= $key ?>"
+            aria-controls="dash-<?= $key ?>" aria-selected="false" data-dash-key="<?= $key ?>">
+            <?= icon($iconName) ?><span class="dash-menu-label"><?= e($label) ?></span>
+            <?php if ($count !== null) : ?>
+                <span class="dash-menu-count<?= $count > 0 ? ' has-value' : '' ?>"><?= (int) $count ?></span>
+            <?php endif; ?>
+            <span class="dash-menu-chevron"><?= icon('arrow-right') ?></span>
+        </button>
+    <?php endforeach; ?>
+    </div>
+    <div class="dash-panels">
+    <?php foreach ($dashPanels as $key => $panel) : ?>
+        <div class="dash-panel" role="tabpanel" id="dash-<?= $key ?>" aria-labelledby="dash-tab-<?= $key ?>">
+            <?= $panel[4] ?>
+        </div>
+    <?php endforeach; ?>
+    </div>
+</div>
 <?php else : ?>
-<div class="grid">
+<div class="row">
+    <div class="col-12 col-sm-6 col-xl-3">
     <?= kpi_tile('Open requests', $kpi['open_count'], 'inbox', 'primary', 'tickets.php?view=open', 'Being worked on') ?>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
     <?= kpi_tile(
         'Resolved',
         $kpi['resolved'],
@@ -135,7 +173,11 @@ $subtitle = $staff
         'tickets.php?view=resolved',
         'Fixed, waiting to close'
     ) ?>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
     <?= kpi_tile('Closed', $kpi['closed'], 'tickets', 'violet', 'tickets.php?view=closed', 'Finished') ?>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
     <?= kpi_tile(
         'All my tickets',
         $kpi['total'],
@@ -144,6 +186,7 @@ $subtitle = $staff
         'tickets.php',
         'Everything you have submitted'
     ) ?>
+    </div>
 </div>
 <section class="card flush">
     <div class="card-header"><h2>My recent tickets</h2><a href="tickets.php">View all</a></div>

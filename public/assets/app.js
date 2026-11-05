@@ -378,6 +378,42 @@
         openHashTarget();
         window.addEventListener('hashchange', openHashTarget);
 
+        // Staff dashboard menu (dashboard.php): one panel open at a time, chosen from the menu on
+        // the left. The last choice is remembered across page loads; arrow keys move through the menu.
+        var dash = document.querySelector('[data-dash-menu]');
+        if (dash) {
+            var dashKey = 'cts.dashPanel';
+            var tabs = Array.prototype.slice.call(dash.querySelectorAll('[data-dash-key]'));
+            var showPanel = function (key, focus) {
+                tabs.forEach(function (tab) {
+                    var on = tab.getAttribute('data-dash-key') === key;
+                    tab.setAttribute('aria-selected', on ? 'true' : 'false');
+                    tab.tabIndex = on ? 0 : -1;
+                    if (on && focus) tab.focus();
+                    var panel = document.getElementById(tab.getAttribute('aria-controls'));
+                    if (panel) panel.classList.toggle('is-active', on);
+                });
+                try { localStorage.setItem(dashKey, key); } catch (e) { /* storage blocked */ }
+            };
+            var start = dash.getAttribute('data-default');
+            try {
+                var saved = localStorage.getItem(dashKey);
+                if (saved && dash.querySelector('[data-dash-key="' + saved + '"]')) start = saved;
+            } catch (e) { /* storage blocked */ }
+            showPanel(start, false);
+            dash.classList.add('is-ready');
+            tabs.forEach(function (tab, i) {
+                tab.addEventListener('click', function () { showPanel(tab.getAttribute('data-dash-key'), false); });
+                tab.addEventListener('keydown', function (event) {
+                    var next = { ArrowDown: i + 1, ArrowRight: i + 1, ArrowUp: i - 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[event.key];
+                    if (next === undefined) return;
+                    event.preventDefault();
+                    next = (next + tabs.length) % tabs.length;
+                    showPanel(tabs[next].getAttribute('data-dash-key'), true);
+                });
+            });
+        }
+
         enhance(document);
         live.init();
         setInterval(function () { updateSlaBadges(document); updateRelativeTimes(); }, 30000);
