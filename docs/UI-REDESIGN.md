@@ -556,9 +556,9 @@ communication channel scoped to where it actually belongs — ticket conversatio
 (section on `ticket.php`'s reply "bubbles," added earlier in this doc) — a separate
 general user-to-user chat would be a materially bigger, differently-scoped feature with
 no spec yet (ticket-scoped? company-wide? DMs?). Worth a one-paragraph change request if
-the team actually wants it, same process `docs/STATUS-UPDATE-NOAH.md` already describes
-for anything touching "frozen" Tasks 5/6 — not something to guess the shape of and build
-unasked.
+the team actually wants it, same process `docs/DEPLOYMENT.md` (section 1.4) already
+describes for anything touching "frozen" Tasks 5/6 — not something to guess the shape of
+and build unasked.
 
 ## 14. Sign-in page, real photo this time
 
