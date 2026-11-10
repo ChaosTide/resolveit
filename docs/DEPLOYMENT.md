@@ -39,7 +39,7 @@ Each of these was requested or required after Phases 1–3 were planned. They ar
 | CR-02 | Phase 4 advanced analytics: SLA targets per priority, date-range filters, SLA compliance and overdue reports, CSV export | Requested: chosen as the only Phase 4 item | Keep; the other Phase 4 items are deferred (1.3) |
 | CR-03 | Sign-in lockout (5 wrong passwords per account or 20 per address in 15 minutes) and Secure session cookies | Required once the site became reachable from the internet | Keep (security necessity, not a feature) |
 | CR-04 | Share the Apache site through a Cloudflare quick tunnel | Team needs access; UWF Azure sign-in is blocked by an MFA error and the personal account has no Azure subscription | Keep as interim hosting |
-| CR-05 | Apache container image for Azure App Service (`deploy/docker`) | Prepared for an always-on server | Built and tested, **not deployed**; blocked on Azure access (UWF sign-in hits an MFA error, personal account has no subscription). A team member has offered to fund hosting directly, which could supply the missing subscription, but nobody has decided whose account it would be, what it costs, or confirmed Azure App Service (vs. a different host that would need new deployment work) |
+| CR-05 | Apache container image for Azure App Service (`deploy/docker`) | Prepared for an always-on server | Built and tested, **not deployed**; the team decided (Nov 10) not to pay for hosting, so this stays as prepared-but-dormant — the repo keeps the Azure App Service image and config ready, but the interim local setup (Apache/Docker + Cloudflare tunnel) is the one actually in use |
 | CR-06 | Modern help desk interface: sidebar navigation, top search bar, colour-coded status/priority/SLA badges, phone-friendly layout, and JavaScript enhancements (live SLA countdowns, clickable rows, instant filters, confirmation prompts, character counters) | Requested by the project owner on September 27, 2026 | Keep |
 | CR-07 | Dashboard (SLA tiles, my queue, needs-attention list, recent activity) and ticket list search, quick views, filters, sorting, and pagination | Requested on September 27, 2026; moves "search, filters, pagination" out of the deferred list | Keep |
 | CR-08 | Requesters and staff can reply on a ticket until it is closed | Requested on September 27, 2026 (a help desk needs two-way updates) | Keep |
@@ -55,9 +55,9 @@ These are **not** being built. Listing them here is the decision; raising them a
 - Native mobile app
 - Email notifications and self-service password reset by email
 - Custom domain name or permanent public URL
-- Always-on cloud hosting (CR-05) until Azure access is resolved, or until the team
-  decides on a paid host a team member offered to fund — no provider or account owner
-  chosen yet
+- Always-on cloud hosting (CR-05) — the team decided not to pay for it (Nov 10) and is
+  staying on the local Apache/Docker + Cloudflare tunnel interim setup instead. The
+  Azure App Service image and config stay in the repo, ready if that decision changes
 - Automatic start of the site at Windows sign-in
 
 ### 1.4 How to add anything new (change control)
@@ -284,7 +284,13 @@ Logs: `C:\Users\draft\AppData\Local\CodexTicketSystem\Apache24\logs\` (`cts4911_
 | CR-11 Sorting, live refresh, split view, organizations, advanced search | ✅ Complete | Automated checks + desktop screenshots |
 | Automated tests | ✅ 137/137 passing | `tests/check-local.ps1` |
 | Team accounts | ⚠️ **To do** | Only the administrator exists; create teammates in Manage Users |
-| Always-on hosting (CR-05) | ⏸ Deferred | Needs working Azure access, or a funded host a team member offered to pay for; provider and account owner not yet decided |
+| Always-on hosting (CR-05) | ⏸ Deferred | Declined paying for hosting (Nov 10); staying on the local Apache/Docker + Cloudflare tunnel interim setup. Azure App Service image/config stay in the repo, ready if revisited |
+
+![Docker Desktop showing the resolveit stack running locally](images/docker-desktop-containers.png)
+
+The `resolveit` stack (`deploy/docker`, CR-05's container image) running locally in
+Docker Desktop — this is the interim setup in actual use, not the deferred Azure
+App Service deployment.
 
 **Open items before calling deployment complete:** create the team accounts, and run Tests 1–8 once as a team.
 
