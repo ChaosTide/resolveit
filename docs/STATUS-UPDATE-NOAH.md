@@ -34,16 +34,21 @@ Honestly — not much. Per the team's own change log
 ([`docs/DEPLOYMENT.md`](DEPLOYMENT.md), section 1.2), both tasks are **frozen**: no
 further additions without a change request.
 
-The one open item is **CR-05, always-on cloud hosting**:
+The one open item is **CR-05, always-on cloud hosting** — and since you asked in Discord
+(Nov 9) whether you could pay to make this a live website: yes, that's exactly what
+would solve it.
 
 - The code for it already exists and is tested — an Apache container for Azure App
   Service (`deploy/docker`), environment-variable-sourced config
-  (`app/config.azure.php`), and Microsoft sign-in (`app/azure-auth.php`).
+  (`app/config.azure.php`), and Microsoft sign-in (`app/azure-auth.php`). It was built
+  for Azure App Service specifically, not a generic host.
 - It's not deployed because UWF Azure sign-in is hitting an MFA error, and the personal
-  account has no Azure subscription. That's an access problem, not a code problem —
-  there's nothing left for me to *build* here, just a blocker to clear (team/instructor
-  help getting Azure access would unblock it).
-- Until that's resolved, the Cloudflare tunnel is the interim way the team reaches the
+  account has no Azure subscription. That's an access problem, not a code problem — if
+  a paid Azure subscription exists, this can likely go live without writing new code.
+- Before you spend anything: let's agree on who owns the subscription and billing, and
+  confirm Azure App Service specifically — a different provider (a generic VPS, Render,
+  etc.) would need new deployment work this config doesn't cover.
+- Until that's decided, the Cloudflare tunnel is the interim way the team reaches the
   live site, and it works fine for demos and day-to-day access.
 
 If anyone on the team needs something from Tasks 5/6 changed, the process is the same

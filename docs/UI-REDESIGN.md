@@ -995,3 +995,41 @@ prominent-vs-secondary split as section 22.
 |---|---|
 | Live CSS | `GET /assets/style.css` confirms the new rule is being served |
 | Still pending | Same as section 24 — live visual confirmation needs a signed-in session |
+
+## 26. "At risk" (and every stat-group card) rebuilt as real tiles, not bare numbers
+
+Jordan, with two screenshots of the dashboard: "change the way this looks... I don't
+like it, make it more modern." Both screenshots show the same thing — the "At risk"
+panel (`stat_group()` in `app/ui.php`, used on the dashboard and on Reports) rendering
+as three numbers floating in a mostly-empty dark card.
+
+Two separate bugs were compounding:
+- `.stat-group-row` was `display: flex` with each `.stat-mini` at `flex: 1`, so the three
+  items did share the card's full width — but their content (a number and a label,
+  left-aligned behind a 3px border) stayed intrinsically narrow, leaving a wide blank gap
+  after each one instead of actually filling the space. `.stat-group`'s own
+  `grid-column: span 2` (meant for the `.grid.dashboard-grid` layout on `reports.php`) is
+  a complete no-op inside the dashboard's `.dash-panel` — that panel isn't a grid
+  container, it's a single full-width column — which is why the card read as emptier
+  there than it does on Reports.
+- The three `strong` numbers were colored with `--danger` / `--warning` directly
+  (`#b91c1c`, `#b45309`) — tuned to read as dark text on the pale `-soft` chip colors
+  (section 16), not to sit on their own against the dark `--surface` card. On the actual
+  dark background they read muddy instead of urgent.
+
+Fixed both. `.stat-group-row` is now a real CSS grid (`repeat(auto-fit, minmax(140px,
+1fr))`), and each `.stat-mini` is its own bordered `--surface-muted` tile with a colored
+top accent and a `translateY` hover lift — same idiom as `.kb-card`/the kpi tiles
+elsewhere, not a new one. Added four `--*-bright` tokens (`--danger-bright: #f87171`,
+plus warning/success/violet) — same hues as the existing tone colors, just lighter and
+more saturated — specifically for text that sits directly on a dark surface instead of
+on a `-soft` chip, and pointed the tile numbers and top accent at those instead of the
+base tone colors. Same hue per tone, so the traffic-light meaning from section 16 isn't
+disturbed, just legible on a dark background. `stat_group()` is shared with
+`reports.php`'s "This period" / "Current backlog" cards, so both pages get the fix from
+one CSS change.
+
+| Check | Result |
+|---|---|
+| Visual check | Built a throwaway static page (`public/_dash_preview.html`, deleted immediately after) wired to the real `assets/style.css`, reproducing the dashboard menu + "At risk" panel markup exactly. Desktop: three filled tiles, no dead space, bright legible numbers. Mobile (375px): tiles reflow with no manual breakpoint needed (grid `auto-fit` handles it) |
+| Still pending | A live, signed-in screenshot of the real `dashboard.php` — blocked on the same disposable-account permission prompt as sections 24/25 and the Knowledge Base article |
