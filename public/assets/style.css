@@ -77,10 +77,10 @@ body { margin: 0; min-height: 100vh; }
 a { color: var(--primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 /* Every heading level -- page titles and card/section headers alike -- shares the same
-   serif, so it's one consistent text style rather than the title looking different from
-   the rest. Size and weight still step down from h1 to h3, so there's still a visual
-   hierarchy; it's just carried by scale now, not by switching typefaces partway down. */
-h1, h2, h3 { line-height: 1.25; margin: 0 0 .75rem; font-family: var(--font-serif); text-transform: uppercase; letter-spacing: .03em; }
+   sans-serif as the rest of the app (matches the dash-menu labels), so nothing looks like
+   a different typeface partway down. Size and weight still step down from h1 to h3, so
+   there's still a visual hierarchy; it's just carried by scale now. */
+h1, h2, h3 { line-height: 1.25; margin: 0 0 .75rem; font-family: var(--font-sans); text-transform: uppercase; letter-spacing: .03em; }
 h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -.005em; }
 h2 { font-size: 1.05rem; font-weight: 650; }
 p { margin: 0 0 .75rem; }
@@ -145,7 +145,7 @@ p { margin: 0 0 .75rem; }
 .top-nav { background: var(--sidebar); color: var(--sidebar-text); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .85rem; padding: .85rem 1.75rem; max-height: 200px; overflow: hidden; }
 .top-nav .brand { margin: .2rem 1.25rem .2rem 0; }
 /* Every nav link is a blue button with a resting glow; the current page gets a white ring and a brighter glow. */
-.top-nav a:not(.brand) { display: inline-flex; align-items: center; gap: .55rem; padding: .6rem 1.1rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .12); background: linear-gradient(155deg, #2f8fd6, var(--primary) 70%); color: #fff; font-family: var(--font-serif); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(47, 143, 214, .55); transition: box-shadow .14s ease, transform .08s ease, filter .14s ease; }
+.top-nav a:not(.brand) { display: inline-flex; align-items: center; gap: .55rem; padding: .6rem 1.1rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .12); background: linear-gradient(155deg, #2f8fd6, var(--primary) 70%); color: #fff; font-family: var(--font-sans); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(47, 143, 214, .55); transition: box-shadow .14s ease, transform .08s ease, filter .14s ease; }
 .top-nav a:not(.brand):hover { color: #fff; text-decoration: none; filter: brightness(1.15); transform: translateY(-1px); box-shadow: 0 8px 22px -6px rgba(47, 143, 214, .8); }
 .top-nav a[aria-current="page"] { background: linear-gradient(155deg, #4aa8f0, #2f8fd6 70%); border-color: rgba(255, 255, 255, .85); box-shadow: 0 0 0 2px rgba(74, 168, 240, .35), 0 6px 22px -4px rgba(74, 168, 240, .85); }
 .nav-divider { width: 1px; align-self: stretch; margin: .3rem .6rem; background: rgba(255, 255, 255, .14); }
@@ -170,6 +170,7 @@ p { margin: 0 0 .75rem; }
 .role-tag { color: var(--text-muted); font-size: .78rem; }
 .icon-button { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid transparent; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; margin: 0; transition: background-color .12s, color .12s; }
 .icon-button:hover { background: var(--surface-muted); border-color: var(--border); color: var(--text); text-decoration: none; box-shadow: none; }
+.topbar-credit { color: var(--text-muted); font-size: .78rem; white-space: nowrap; }
 .menu-toggle { display: inline-grid; margin-left: .25rem; }
 .content { padding: 1.75rem; max-width: 1280px; width: 100%; margin: 0 auto; }
 .app-footer { margin-top: auto; text-align: center; color: var(--text-muted); font-size: .78rem; padding: 1rem 1.75rem 1.5rem; }
@@ -798,6 +799,7 @@ tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
     .nav-divider { width: auto; height: 1px; align-self: stretch; margin: .4rem 0; }
     .topbar { padding: .6rem 1rem; }
     .user-meta { display: none; }
+    .topbar-credit { display: none; }
     .content { padding: 1.1rem 1rem; }
     .table-wrap, .card > table { display: block; overflow-x: auto; }
     .hide-sm { display: none; }

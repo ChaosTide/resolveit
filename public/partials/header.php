@@ -40,6 +40,7 @@ $topbarQuery = $currentPage === 'tickets.php' ? (string) ($_GET['q'] ?? '') : ''
         </span>
         <a class="icon-button" href="logout.php" title="Sign out" aria-label="Sign out"><?= icon('logout') ?></a>
     </div>
+    <span class="topbar-credit">ResolveIT &middot; CTS 4911 capstone</span>
     <button type="button" class="icon-button menu-toggle" aria-controls="top-nav" aria-expanded="true"
         aria-label="Toggle navigation"><?= icon('menu') ?></button>
 </header>
