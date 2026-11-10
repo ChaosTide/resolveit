@@ -62,6 +62,31 @@ require __DIR__ . '/partials/header.php';
         <p class="subtitle">Ticket volume, workload, and SLA performance. Every table exports to CSV.</p>
     </div>
 </div>
+<?php /* Same layout as the dashboard: a menu on the left (Overview + one item per report), the chosen
+   item's panel on the right (app.js [data-dash-menu]). The date range sits above the panels because it
+   applies to all of them. #report-<key> links (e.g. the overview tiles) open that report's panel. */ ?>
+<div class="dash-layout" data-dash-menu data-default="overview" data-storage="cts.reportPanel">
+    <div class="dash-menu report-menu" role="tablist" aria-orientation="vertical" aria-label="Reports">
+        <button type="button" class="dash-menu-item" role="tab" id="dash-tab-overview"
+            aria-controls="report-overview" aria-selected="false" data-dash-key="overview">
+            <?= icon('dashboard') ?><span class="dash-menu-label">Overview</span>
+            <span class="dash-menu-chevron"><?= icon('arrow-right') ?></span>
+        </button>
+        <?php $number = 0; ?>
+        <?php foreach ($reports as $key => $report) : ?>
+            <?php $number++; ?>
+        <button type="button" class="dash-menu-item" role="tab" id="dash-tab-<?= $key ?>"
+            aria-controls="report-<?= $key ?>" aria-selected="false" data-dash-key="<?= $key ?>">
+            <span class="dash-menu-num"><?= $number ?></span>
+            <span class="dash-menu-label"><?= e($report['title']) ?></span>
+            <?php if ($report['scope'] === 'current') : ?>
+                <span class="dash-menu-tag" title="Ignores the date range: the backlog right now">Live</span>
+            <?php endif; ?>
+            <span class="dash-menu-chevron"><?= icon('arrow-right') ?></span>
+        </button>
+        <?php endforeach; ?>
+    </div>
+    <div class="dash-panels">
 <section class="card">
 <form method="get" class="range-form">
     <div><label for="from">From</label><input id="from" name="from" type="date" value="<?= e($from) ?>" required></div>
@@ -77,13 +102,14 @@ require __DIR__ . '/partials/header.php';
 <?php if ($rangeNotice) : ?><p class="errors"><?= e($rangeNotice) ?></p><?php endif; ?>
 <p class="meta">
     Showing tickets created <?= e($fromDate->format('M j, Y')) ?> &ndash; <?= e($toDate->format('M j, Y')) ?>.
-    Reports marked <em>current</em> ignore the dates and show the backlog right now.
+    Reports marked <em>Live</em> ignore the dates and show the backlog right now.
     <a class="button secondary" href="reports.php?<?= e($rangeQuery) ?>&amp;export=tickets">
         Export all tickets in range (CSV)
     </a>
 </p>
 </section>
 
+<div class="dash-panel" role="tabpanel" id="report-overview" aria-labelledby="dash-tab-overview">
 <div class="grid dashboard-grid">
     <div class="card stat tone-primary">
         <span class="meta">Met SLA in period</span><strong><?= $compliance ?></strong>
@@ -114,29 +140,31 @@ require __DIR__ . '/partials/header.php';
         ],
     ]) ?>
 </div>
-
-<p class="meta"><?= count($reports) ?> reports below &mdash; click one to expand it. Each exports to CSV.</p>
-<div class="report-list">
-<?php $number = 0; ?>
-<?php foreach ($reports as $key => $report) : ?>
-    <?php $number++; ?>
-<details class="card report-card" id="report-<?= $key ?>">
-    <summary>
-        <span class="report-number"><?= $number ?></span>
-        <span class="report-title"><?= e($report['title']) ?></span>
-        <?php if ($report['scope'] === 'current') : ?><span class="meta">Current</span><?php endif; ?>
-    </summary>
-    <div class="report-body">
-        <p class="report-actions">
-            <a href="reports.php?<?= e($rangeQuery) ?>&amp;export=<?= $key ?>">Export CSV</a>
-        </p>
-        <?php render_report($report); ?>
-    </div>
-</details>
-<?php endforeach; ?>
 <p class="meta">
     SLA targets are set per priority in <a href="settings.php?tab=priorities">Settings &rarr; Priorities</a>.
     A ticket meets its SLA when it is resolved within the target number of hours after it was created.
     "Met SLA" counts tickets that were resolved on time out of all tickets that were resolved or are already overdue.
 </p>
+</div>
+
+<?php $number = 0; ?>
+<?php foreach ($reports as $key => $report) : ?>
+    <?php $number++; ?>
+<div class="dash-panel" role="tabpanel" id="report-<?= $key ?>" aria-labelledby="dash-tab-<?= $key ?>">
+<section class="card flush report-card">
+    <div class="card-header">
+        <h2><span class="report-number"><?= $number ?></span> <?= e($report['title']) ?></h2>
+        <div class="report-actions">
+            <?php if ($report['scope'] === 'current') : ?><span class="dash-menu-tag">Live</span><?php endif; ?>
+            <a class="button secondary small" href="reports.php?<?= e($rangeQuery) ?>&amp;export=<?= $key ?>">
+                <?= icon('download') ?>Export CSV
+            </a>
+        </div>
+    </div>
+    <?php render_report($report); ?>
+</section>
+</div>
+<?php endforeach; ?>
+    </div><!-- .dash-panels -->
+</div><!-- .dash-layout -->
 <?php require __DIR__ . '/partials/footer.php'; ?>

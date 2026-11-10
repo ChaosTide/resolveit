@@ -67,11 +67,25 @@ $subtitle = $staff
 <?php if ($staff) : ?>
 <?php
 // Staff dashboard = a menu on the left; clicking an item opens its panel on the right (app.js,
-// [data-dash-menu]). Each entry: [menu label, icon, tone, count shown in the menu or null, panel HTML].
-// Without JavaScript every panel simply shows, stacked, so nothing is lost.
+// [data-dash-menu]). Each panel is a photo hero banner (big title, key number, call to action)
+// with the detail (stats/table/timeline) on a card below. Without JavaScript every panel simply
+// shows, stacked, so nothing is lost.
+//
+// Hero images live in public/assets/dash/<key>.(webp|jpg|jpeg|png); the first one found is used,
+// then each 'images' fallback key, then a plain tone gradient (CSS) if there is no file at all.
+$heroImage = function (array $keys): ?string {
+    foreach ($keys as $key) {
+        foreach (['webp', 'jpg', 'jpeg', 'png'] as $ext) {
+            $file = __DIR__ . "/assets/dash/$key.$ext";
+            if (is_file($file)) {
+                return "assets/dash/$key.$ext?v=" . filemtime($file);
+            }
+        }
+    }
+    return null;
+};
 ob_start(); ?>
 <section class="card">
-    <h2>Recent activity</h2>
     <?php if (!$activity) : ?><p class="meta">No ticket activity yet.</p><?php endif; ?>
     <ul class="timeline">
     <?php foreach ($activity as $item) : ?>
@@ -88,73 +102,110 @@ ob_start(); ?>
 </section>
 <?php
 $activityHtml = ob_get_clean();
+// label/icon/tone/count drive the menu; title, number + caption, and cta drive the hero banner;
+// body is the detail card under the hero ('' for none); images = hero image keys to try, in order.
 $dashPanels = [
-    'open' => ['Open tickets', 'inbox', 'primary', $kpi['unresolved'], kpi_tile(
-        'Open tickets',
-        $kpi['unresolved'],
-        'inbox',
-        'primary',
-        'tickets.php?view=open',
-        'Not yet resolved'
-    )],
-    'unassigned' => ['Unassigned', 'user', 'violet', $kpi['unassigned'], kpi_tile(
-        'Unassigned',
-        $kpi['unassigned'],
-        'user',
-        'violet',
-        'tickets.php?view=unassigned',
-        'Waiting for a technician'
-    )],
-    'risk' => ['At risk', 'alert', 'danger', $kpi['overdue'], stat_group('At risk', 'alert', [
-        ['label' => 'Overdue', 'value' => $kpi['overdue'], 'tone' => 'danger', 'href' => 'tickets.php?view=overdue'],
-        [
-            'label' => 'Due in 4h', 'value' => $kpi['due_soon'], 'tone' => 'warning',
-            'href' => 'tickets.php?view=open&sort=due',
-        ],
-        [
-            'label' => 'Past due date', 'value' => $kpi['past_due'], 'tone' => 'danger',
-            'href' => 'tickets.php?view=pastdue',
-        ],
-    ])],
-    'day' => ['Your day', 'clock', 'success', $kpi['resolved_today'], stat_group('Your day', 'user', [
-        ['label' => 'My queue', 'value' => $kpi['mine'], 'tone' => 'primary', 'href' => 'tickets.php?view=mine'],
-        [
-            'label' => 'Resolved today', 'value' => $kpi['resolved_today'], 'tone' => 'success',
-            'href' => 'tickets.php?view=resolved',
-        ],
-        [
-            'label' => 'Waiting on requester', 'value' => $kpi['waiting'], 'tone' => 'violet',
-            'href' => 'tickets.php?view=waiting',
-        ],
-    ])],
-    'queue' => ['My queue', 'tickets', 'primary', $kpi['mine'], '<section class="card flush">'
-        . '<div class="card-header"><h2>My queue</h2><a href="tickets.php?view=mine">View all</a></div>'
-        . ticket_table($queue, true, 'Nothing assigned to you right now.') . '</section>'],
-    'attention' => ['Needs attention', 'alert', 'warning', count($attention), '<section class="card flush">'
-        . '<div class="card-header"><h2>Needs attention</h2><a href="tickets.php?view=overdue">Overdue list</a></div>'
-        . ticket_table($attention, true, 'No overdue or unassigned tickets. The queue is healthy.') . '</section>'],
-    'activity' => ['Recent activity', 'chart', 'primary', null, $activityHtml],
+    'open' => [
+        'label' => 'Open tickets', 'icon' => 'inbox', 'tone' => 'primary', 'count' => $kpi['unresolved'],
+        'title' => 'Everything still in motion', 'caption' => 'tickets not yet resolved',
+        'cta' => ['View open tickets', 'tickets.php?view=open'], 'body' => '',
+    ],
+    'unassigned' => [
+        'label' => 'Unassigned', 'icon' => 'user', 'tone' => 'violet', 'count' => $kpi['unassigned'],
+        'title' => 'Waiting for a technician', 'caption' => 'tickets with no one assigned',
+        'cta' => ['Assign tickets', 'tickets.php?view=unassigned'], 'body' => '',
+    ],
+    'risk' => [
+        'label' => 'At risk', 'icon' => 'alert', 'tone' => 'danger', 'count' => $kpi['overdue'],
+        'title' => 'Beat the clock', 'caption' => 'overdue right now',
+        'cta' => ['View overdue', 'tickets.php?view=overdue'],
+        'body' => stat_group('At risk', 'alert', [
+            [
+                'label' => 'Overdue', 'value' => $kpi['overdue'], 'tone' => 'danger',
+                'href' => 'tickets.php?view=overdue',
+            ],
+            [
+                'label' => 'Due in 4h', 'value' => $kpi['due_soon'], 'tone' => 'warning',
+                'href' => 'tickets.php?view=open&sort=due',
+            ],
+            [
+                'label' => 'Past due date', 'value' => $kpi['past_due'], 'tone' => 'danger',
+                'href' => 'tickets.php?view=pastdue',
+            ],
+        ]),
+    ],
+    'day' => [
+        'label' => 'Your day', 'icon' => 'clock', 'tone' => 'success', 'count' => $kpi['resolved_today'],
+        'title' => 'Your day at a glance', 'caption' => 'resolved today',
+        'cta' => ['Open my queue', 'tickets.php?view=mine'],
+        'body' => stat_group('Your day', 'user', [
+            ['label' => 'My queue', 'value' => $kpi['mine'], 'tone' => 'primary', 'href' => 'tickets.php?view=mine'],
+            [
+                'label' => 'Resolved today', 'value' => $kpi['resolved_today'], 'tone' => 'success',
+                'href' => 'tickets.php?view=resolved',
+            ],
+            [
+                'label' => 'Waiting on requester', 'value' => $kpi['waiting'], 'tone' => 'violet',
+                'href' => 'tickets.php?view=waiting',
+            ],
+        ]),
+    ],
+    'queue' => [
+        'label' => 'My queue', 'icon' => 'tickets', 'tone' => 'primary', 'count' => $kpi['mine'],
+        'title' => 'Your queue', 'caption' => 'open tickets assigned to you',
+        'cta' => ['View all', 'tickets.php?view=mine'],
+        'body' => '<section class="card flush">'
+            . ticket_table($queue, true, 'Nothing assigned to you right now.') . '</section>',
+    ],
+    'attention' => [
+        'label' => 'Needs attention', 'icon' => 'alert', 'tone' => 'warning', 'count' => count($attention),
+        'title' => 'Needs attention', 'caption' => 'overdue or unassigned', 'images' => ['attention', 'risk'],
+        'cta' => ['Overdue list', 'tickets.php?view=overdue'],
+        'body' => '<section class="card flush">'
+            . ticket_table($attention, true, 'No overdue or unassigned tickets. The queue is healthy.') . '</section>',
+    ],
+    'activity' => [
+        'label' => 'Recent activity', 'icon' => 'chart', 'tone' => 'primary', 'count' => null,
+        'title' => 'What just happened', 'caption' => 'latest ticket changes', 'heroCount' => count($activity),
+        'cta' => ['All tickets', 'tickets.php'], 'body' => $activityHtml,
+    ],
 ];
 // Opens on your own queue when you have one, otherwise on what needs attention.
 $dashDefault = $kpi['mine'] > 0 ? 'queue' : 'attention';
 ?>
 <div class="dash-layout" data-dash-menu data-default="<?= $dashDefault ?>">
     <div class="dash-menu" role="tablist" aria-orientation="vertical" aria-label="Dashboard sections">
-    <?php foreach ($dashPanels as $key => [$label, $iconName, $tone, $count]) : ?>
-        <button type="button" class="dash-menu-item tone-<?= $tone ?>" role="tab" id="dash-tab-<?= $key ?>"
+    <?php foreach ($dashPanels as $key => $p) : ?>
+        <button type="button" class="dash-menu-item tone-<?= $p['tone'] ?>" role="tab" id="dash-tab-<?= $key ?>"
             aria-controls="dash-<?= $key ?>" aria-selected="false" data-dash-key="<?= $key ?>">
-            <?= icon($iconName) ?><span class="dash-menu-label"><?= e($label) ?></span>
-            <?php if ($count !== null) : ?>
-                <span class="dash-menu-count<?= $count > 0 ? ' has-value' : '' ?>"><?= (int) $count ?></span>
+            <?= icon($p['icon']) ?><span class="dash-menu-label"><?= e($p['label']) ?></span>
+            <?php if ($p['count'] !== null) : ?>
+                <span class="dash-menu-count<?= $p['count'] > 0 ? ' has-value' : '' ?>"><?= (int) $p['count'] ?></span>
             <?php endif; ?>
             <span class="dash-menu-chevron"><?= icon('arrow-right') ?></span>
         </button>
     <?php endforeach; ?>
     </div>
     <div class="dash-panels">
-    <?php foreach ($dashPanels as $key => $panel) : ?>
+    <?php foreach ($dashPanels as $key => $p) : ?>
+        <?php $img = $heroImage($p['images'] ?? [$key]); ?>
         <div class="dash-panel" role="tabpanel" id="dash-<?= $key ?>" aria-labelledby="dash-tab-<?= $key ?>">
-            <?= $panel[4] ?>
+            <div class="dash-hero dash-hero-<?= $key ?><?= $img ? ' has-image' : '' ?>">
+                <?php if ($img) : ?>
+                    <div class="dash-hero-bg" style="background-image: url('<?= e($img) ?>')" aria-hidden="true"></div>
+                <?php endif; ?>
+                <div class="dash-hero-body">
+                    <span class="dash-hero-eyebrow"><?= icon($p['icon']) ?><?= e($p['label']) ?></span>
+                    <h2 class="dash-hero-title"><?= e($p['title']) ?></h2>
+                    <p class="dash-hero-stat">
+                        <strong><?= (int) ($p['heroCount'] ?? $p['count']) ?></strong> <?= e($p['caption']) ?>
+                    </p>
+                    <a class="button dash-hero-cta" href="<?= e($p['cta'][1]) ?>">
+                        <?= e($p['cta'][0]) ?><?= icon('arrow-right') ?>
+                    </a>
+                </div>
+            </div>
+            <?= $p['body'] ?>
         </div>
     <?php endforeach; ?>
     </div>

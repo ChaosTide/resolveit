@@ -378,11 +378,12 @@
         openHashTarget();
         window.addEventListener('hashchange', openHashTarget);
 
-        // Staff dashboard menu (dashboard.php): one panel open at a time, chosen from the menu on
-        // the left. The last choice is remembered across page loads; arrow keys move through the menu.
+        // Side menu (dashboard.php, reports.php): one panel open at a time, chosen from the menu on
+        // the left. The last choice is remembered per page (data-storage) across page loads; arrow keys
+        // move through the menu; a #<panel id> link or URL opens that panel.
         var dash = document.querySelector('[data-dash-menu]');
         if (dash) {
-            var dashKey = 'cts.dashPanel';
+            var dashKey = dash.getAttribute('data-storage') || 'cts.dashPanel';
             var tabs = Array.prototype.slice.call(dash.querySelectorAll('[data-dash-key]'));
             var showPanel = function (key, focus) {
                 tabs.forEach(function (tab) {
@@ -400,7 +401,15 @@
                 var saved = localStorage.getItem(dashKey);
                 if (saved && dash.querySelector('[data-dash-key="' + saved + '"]')) start = saved;
             } catch (e) { /* storage blocked */ }
-            showPanel(start, false);
+            var hashTab = function () {
+                var tab = location.hash && dash.querySelector('[aria-controls="' + location.hash.slice(1) + '"]');
+                return tab ? tab.getAttribute('data-dash-key') : null;
+            };
+            showPanel(hashTab() || start, false);
+            window.addEventListener('hashchange', function () {
+                var key = hashTab();
+                if (key) { showPanel(key, false); dash.scrollIntoView({ block: 'start' }); }
+            });
             dash.classList.add('is-ready');
             tabs.forEach(function (tab, i) {
                 tab.addEventListener('click', function () { showPanel(tab.getAttribute('data-dash-key'), false); });

@@ -182,7 +182,17 @@ require __DIR__ . '/partials/header.php';
     </div>
 </div>
 
-<nav class="quick-filters" aria-label="Quick views" id="live-chips" data-live-region>
+<?php
+// Quick views as a menu on the left (same look as the dashboard menu), everything else on the
+// right. [icon, tone] per view; the tone colors the count when it is above zero.
+$viewStyle = [
+    'all' => ['tickets', 'primary'], 'open' => ['inbox', 'primary'], 'waiting' => ['mail', 'violet'],
+    'mine' => ['user', 'primary'], 'unassigned' => ['users', 'violet'], 'overdue' => ['alert', 'danger'],
+    'pastdue' => ['clock', 'danger'], 'resolved' => ['check', 'success'], 'closed' => ['lock', 'primary'],
+];
+?>
+<div class="side-menu-layout">
+<nav class="dash-menu view-menu" aria-label="Quick views" id="live-chips" data-live-region>
 <?php foreach ($views as $key => $label) : ?>
     <?php
     $chipQuery = array_filter([
@@ -193,13 +203,17 @@ require __DIR__ . '/partials/header.php';
     ]);
     $chipCount = $chipCounts[$key] ?? 0;
     $chipActive = $filters['view'] === $key;
+    [$viewIcon, $viewTone] = $viewStyle[$key];
     ?>
-    <a class="chip<?= $chipCount === 0 && !$chipActive ? ' chip-zero' : '' ?>"
+    <a class="dash-menu-item tone-<?= $viewTone ?><?= $chipCount === 0 && !$chipActive ? ' is-empty' : '' ?>"
         href="tickets.php?<?= e(http_build_query($chipQuery)) ?>" <?= $chipActive ? 'aria-current="true"' : '' ?>>
-        <?= e($label) ?> <span class="count"><?= $chipCount ?></span>
+        <?= icon($viewIcon) ?><span class="dash-menu-label"><?= e($label) ?></span>
+        <span class="dash-menu-count<?= $chipCount > 0 ? ' has-value' : '' ?>"><?= $chipCount ?></span>
+        <span class="dash-menu-chevron"><?= icon('arrow-right') ?></span>
     </a>
 <?php endforeach; ?>
 </nav>
+<div class="side-menu-main">
 
 <form class="card filters" method="get" action="tickets.php">
     <?php if ($viewParam !== null) : ?><input type="hidden" name="view" value="<?= e($viewParam) ?>"><?php endif; ?>
@@ -331,6 +345,8 @@ require __DIR__ . '/partials/header.php';
     </aside>
     <?php endif; ?>
 </div>
+</div><!-- .side-menu-main -->
+</div><!-- .side-menu-layout -->
 <div class="update-banner" data-update-banner hidden>
     <span>Tickets have changed.</span> <button type="button" class="small" data-refresh-now>Refresh now</button>
 </div>

@@ -40,6 +40,13 @@
     --danger: #b91c1c; --danger-soft: #fee2e2;
     --info: #0369a1; --info-soft: #e0f2fe;
     --violet: #6d28d9; --violet-soft: #ede9fe;
+    /* Same hues, lighter/more saturated -- for colored text/accents that sit directly on a dark
+       --surface (no pale chip underneath it the way .stat-icon/.dash-menu-count have), where the
+       base tone colors above read as muddy instead of vibrant. */
+    --success-bright: #4ade80;
+    --warning-bright: #fbbf24;
+    --danger-bright: #f87171;
+    --violet-bright: #a78bfa;
     /* Sharpened to match the sign-in card / buttons (sections 15, 19) -- was 7/11/15px.
        One token change instead of touching every .card, .table-wrap, input, etc.
        individually; that's the point of having them reference a token at all. */
@@ -403,16 +410,78 @@ a.stat:hover { text-decoration: none; transform: translateY(-2px); box-shadow: v
 .dash-menu-item[aria-selected="true"] .icon { color: #fff; }
 .dash-menu-item[aria-selected="true"] .dash-menu-chevron { opacity: 1; transform: none; }
 .dash-menu-item[aria-selected="true"] .dash-menu-count { background: rgba(255, 255, 255, .2); color: #fff; }
+/* Same menu as a column of links on other pages (tickets.php quick views): menu left, page right.
+   The link for the current view gets aria-current instead of the dashboard's aria-selected. */
+.side-menu-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.side-menu-main { min-width: 0; }
+a.dash-menu-item { text-decoration: none; }
+a.dash-menu-item:hover { color: var(--text); text-decoration: none; }
+.dash-menu-item.is-empty { opacity: .55; }
+.dash-menu-item.is-empty:hover { opacity: 1; }
+.dash-menu-item[aria-current="true"] { background: linear-gradient(155deg, #2f8fd6, var(--primary) 70%); border-color: rgba(255, 255, 255, .25); color: #fff; box-shadow: 0 6px 18px -6px rgba(47, 143, 214, .8); }
+.dash-menu-item[aria-current="true"]:hover { color: #fff; }
+.dash-menu-item[aria-current="true"] .icon { color: #fff; }
+.dash-menu-item[aria-current="true"] .dash-menu-chevron { opacity: 1; transform: none; }
+.dash-menu-item[aria-current="true"] .dash-menu-count { background: rgba(255, 255, 255, .2); color: #fff; }
+@media (max-width: 1100px) {
+    .side-menu-layout { grid-template-columns: 1fr; }
+    .view-menu { position: static; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    .view-menu .dash-menu-chevron { display: none; }
+}
 .dash-panels { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.dash-panel { display: flex; flex-direction: column; gap: 1rem; }
 .dash-panel > .card { margin-bottom: 0; }
-.dash-panel .stat-group { min-height: 180px; }
+.dash-hero ~ .stat-group .stat-group-header { display: none; } /* the hero above already names it */
+/* Reports menu: numbered items, long titles wrap instead of truncating, "Live" tag on reports
+   that ignore the date range. */
+.report-menu .dash-menu-item { white-space: normal; line-height: 1.3; }
+.report-menu .dash-menu-label { overflow: visible; text-transform: none; letter-spacing: 0; font-size: .9rem; }
+.dash-menu-num { display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 6px; background: rgba(255, 255, 255, .07); color: var(--text-muted); font-family: var(--font-mono); font-size: .8rem; font-weight: 700; }
+.dash-menu-item[aria-selected="true"] .dash-menu-num { background: rgba(255, 255, 255, .2); color: #fff; }
+.dash-menu-tag { flex: none; padding: .1rem .45rem; border-radius: 6px; background: var(--success-soft); color: var(--success); font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.report-card .card-header { padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+.report-card .card-header h2 { display: flex; align-items: center; gap: .6rem; }
+.report-card .report-actions { display: flex; align-items: center; gap: .6rem; margin: 0; }
 .dash-layout.is-ready .dash-panel:not(.is-active) { display: none; }
-.dash-layout.is-ready .dash-panel.is-active { animation: dash-pop .2s ease-out; }
+.dash-layout.is-ready .dash-panel.is-active { animation: dash-pop .25s ease-out; }
 @keyframes dash-pop { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+
+/* Hero banner: the section's photo (public/assets/dash/<key>.*) on .dash-hero-bg, set as an inline
+   background-image so its relative URL resolves against the page, not this stylesheet. ::before is a
+   dark wash from the left over it so the white text stays readable (the photos are dark on the left
+   by design). Without a photo, ::before is a glow in the section's accent color instead.
+   --hero-accent colors the eyebrow, the big number and the glow. The photo eases in (slow zoom)
+   each time the panel opens. */
+.dash-hero { --hero-accent: #4aa8f0; position: relative; overflow: hidden; isolation: isolate; display: flex; align-items: center; min-height: 300px; aspect-ratio: 3 / 1; max-height: 420px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: #070b12; box-shadow: var(--shadow-lg); }
+.dash-hero::before { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(60% 90% at 78% 55%, color-mix(in srgb, var(--hero-accent) 38%, transparent), transparent 70%), linear-gradient(135deg, #070b12, #0d1622); }
+.dash-hero-bg { position: absolute; inset: 0; z-index: -2; background: right center / cover no-repeat; }
+.dash-hero.has-image::before { background: linear-gradient(90deg, rgba(5, 8, 13, .92) 0%, rgba(5, 8, 13, .65) 38%, rgba(5, 8, 13, 0) 68%); }
+.dash-panel.is-active .dash-hero-bg { animation: hero-zoom 1.2s cubic-bezier(.2, .7, .2, 1); }
+@keyframes hero-zoom { from { transform: scale(1.08); opacity: .4; } to { transform: none; opacity: 1; } }
+.dash-hero-body { position: relative; max-width: 560px; padding: 2.25rem 2.5rem; }
+.dash-hero-eyebrow { display: inline-flex; align-items: center; gap: .5rem; padding: .3rem .7rem; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--hero-accent) 45%, transparent); background: color-mix(in srgb, var(--hero-accent) 14%, transparent); color: var(--hero-accent); font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.dash-hero-eyebrow .icon { width: 15px; height: 15px; }
+.dash-hero .dash-hero-title { margin: 1rem 0 .5rem; color: #fff; font-family: var(--font-sans); font-size: clamp(2rem, 3.6vw, 3.25rem); font-weight: 700; line-height: 1.05; letter-spacing: -.025em; text-transform: none; text-shadow: 0 2px 24px rgba(0, 0, 0, .5); }
+.dash-hero-stat { display: flex; align-items: baseline; gap: .6rem; margin: 0 0 1.5rem; color: rgba(255, 255, 255, .78); font-size: 1.05rem; }
+.dash-hero-stat strong { color: var(--hero-accent); font-family: var(--font-mono); font-size: 2.4rem; font-weight: 700; line-height: 1; text-shadow: 0 0 24px color-mix(in srgb, var(--hero-accent) 60%, transparent); }
+.dash-hero .dash-hero-cta { margin-top: 0; padding: .8rem 1.4rem; border-radius: 999px; font-size: .9rem; }
+.dash-hero-cta .icon { width: 16px; height: 16px; }
+/* Accent per section, matched to its photo. */
+.dash-hero-open { --hero-accent: #f6b85a; }
+.dash-hero-unassigned { --hero-accent: #4aa8f0; }
+.dash-hero-risk, .dash-hero-attention { --hero-accent: #ff9b3d; }
+.dash-hero-day { --hero-accent: #5fe3a1; }
+.dash-hero-queue { --hero-accent: #3fd6e6; }
+.dash-hero-activity { --hero-accent: #2ee6cf; }
+
 @media (max-width: 820px) {
     .dash-layout { grid-template-columns: 1fr; }
     .dash-menu { position: static; display: grid; grid-template-columns: 1fr 1fr; }
     .dash-menu-chevron { display: none; }
+    .dash-hero { aspect-ratio: auto; min-height: 260px; }
+    .dash-hero-bg { background-position: 75% center; }
+    .dash-hero.has-image::before { background: linear-gradient(0deg, rgba(5, 8, 13, .95) 10%, rgba(5, 8, 13, .55) 60%, rgba(5, 8, 13, .3)); }
+    .dash-hero-body { padding: 1.5rem; }
 }
 
 /* A card grouping several related mini-stats (stat_group() in app/ui.php) instead of each
@@ -423,28 +492,30 @@ a.stat:hover { text-decoration: none; transform: translateY(-2px); box-shadow: v
 .stat-group-header { display: flex; align-items: center; gap: .5rem; font-weight: 600; font-size: .8rem;
     text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: .85rem; }
 .stat-group-header .icon { width: 16px; height: 16px; }
-.stat-group-row { display: flex; gap: 1.5rem; flex: 1; align-items: flex-end; }
-.stat-mini { display: flex; flex-direction: column; gap: .15rem; color: inherit; flex: 1; min-width: 0;
-    border-left: 3px solid var(--border); padding-left: .7rem; }
-.stat-mini:hover { text-decoration: none; border-left-color: var(--primary); }
-.stat-mini strong { font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; font-family: var(--font-mono); }
-.stat-mini span { font-size: .78rem; color: var(--text-muted); overflow-wrap: anywhere; }
-.stat-mini.tone-danger:hover { border-left-color: var(--danger); }
-.stat-mini.tone-danger strong { color: var(--danger); }
-.stat-mini.tone-warning:hover { border-left-color: var(--warning); }
-.stat-mini.tone-warning strong { color: var(--warning); }
-.stat-mini.tone-success:hover { border-left-color: var(--success); }
-.stat-mini.tone-success strong { color: var(--success); }
-.stat-mini.tone-violet:hover { border-left-color: var(--violet); }
-.stat-mini.tone-violet strong { color: var(--violet); }
+.stat-group-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .85rem; flex: 1; }
+.stat-mini { display: flex; flex-direction: column; gap: .3rem; color: inherit; min-width: 0;
+    padding: 1rem 1.1rem; border-radius: var(--radius); background: var(--surface-muted);
+    border: 1px solid var(--border); border-top: 3px solid var(--border-strong);
+    transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease; }
+.stat-mini:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
+.stat-mini strong { font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em; font-family: var(--font-mono); line-height: 1; }
+.stat-mini span { font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); overflow-wrap: anywhere; }
+.stat-mini.tone-primary { border-top-color: var(--sidebar-accent); }
+.stat-mini.tone-primary strong { color: var(--sidebar-accent); }
+.stat-mini.tone-danger { border-top-color: var(--danger-bright); }
+.stat-mini.tone-danger:hover { border-color: var(--danger-bright); }
+.stat-mini.tone-danger strong { color: var(--danger-bright); }
+.stat-mini.tone-warning { border-top-color: var(--warning-bright); }
+.stat-mini.tone-warning:hover { border-color: var(--warning-bright); }
+.stat-mini.tone-warning strong { color: var(--warning-bright); }
+.stat-mini.tone-success { border-top-color: var(--success-bright); }
+.stat-mini.tone-success:hover { border-color: var(--success-bright); }
+.stat-mini.tone-success strong { color: var(--success-bright); }
+.stat-mini.tone-violet { border-top-color: var(--violet-bright); }
+.stat-mini.tone-violet:hover { border-color: var(--violet-bright); }
+.stat-mini.tone-violet strong { color: var(--violet-bright); }
 @media (max-width: 640px) {
     .stat-group { grid-column: span 1; }
-    .stat-group-row { flex-direction: column; gap: .85rem; }
-    .stat-mini { border-left: none; border-top: 3px solid var(--border); padding-left: 0; padding-top: .5rem; }
-    .stat-mini.tone-danger:hover { border-top-color: var(--danger); border-left-color: transparent; }
-    .stat-mini.tone-warning:hover { border-top-color: var(--warning); border-left-color: transparent; }
-    .stat-mini.tone-success:hover { border-top-color: var(--success); border-left-color: transparent; }
-    .stat-mini.tone-violet:hover { border-top-color: var(--violet); border-left-color: transparent; }
 }
 
 /* ---------- Forms ---------- */
