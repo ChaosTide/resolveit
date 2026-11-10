@@ -6,6 +6,23 @@ require_once __DIR__ . '/../app/bootstrap.php';
 if (current_user()) {
     redirect('dashboard.php');
 }
+// Azure: sign-in is Microsoft-only (see app/azure-auth.php) -- the password form below
+// can never work there (team accounts get an unusable random password on creation), so
+// send the visitor straight to Microsoft sign-in instead of showing a dead-end form.
+if (getenv('APP_ENV') === 'azure') {
+    require __DIR__ . '/partials/header.php';
+    ?>
+    <section class="card auth-card">
+        <h1>Sign in</h1>
+        <p>This is the hosted ResolveIT site for the CTS 4911 team. Sign in with your
+            <strong>@students.uwf.edu</strong> Microsoft account.</p>
+        <a class="button" style="display:block;text-align:center;width:100%"
+            href="/.auth/login/aad?post_login_redirect_uri=%2Fdashboard.php">Sign in with Microsoft</a>
+    </section>
+    <?php
+    require __DIR__ . '/partials/footer.php';
+    return;
+}
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();

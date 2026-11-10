@@ -8,7 +8,10 @@ declare(strict_types=1);
 // connection, and make sure the session's user is still a real, active account.
 
 $azureIdentity = null;
-if (getenv('APP_ENV') === 'azure') {
+// login.php renders its own "Sign in with Microsoft" button for an anonymous visitor
+// (see public/login.php) instead of being force-redirected, so it's the one page that
+// must not hard-require an already-verified Microsoft identity here.
+if (getenv('APP_ENV') === 'azure' && basename($_SERVER['SCRIPT_NAME'] ?? '') !== 'login.php') {
     require_once __DIR__ . '/azure-auth.php';
     $azureIdentity = azure_team_identity();
 }

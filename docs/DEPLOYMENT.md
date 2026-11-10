@@ -39,7 +39,7 @@ Each of these was requested or required after Phases 1–3 were planned. They ar
 | CR-02 | Phase 4 advanced analytics: SLA targets per priority, date-range filters, SLA compliance and overdue reports, CSV export | Requested: chosen as the only Phase 4 item | Keep; the other Phase 4 items are deferred (1.3) |
 | CR-03 | Sign-in lockout (5 wrong passwords per account or 20 per address in 15 minutes) and Secure session cookies | Required once the site became reachable from the internet | Keep (security necessity, not a feature) |
 | CR-04 | Share the Apache site through a Cloudflare quick tunnel | Team needs access; UWF Azure sign-in is blocked by an MFA error and the personal account has no Azure subscription | Keep as interim hosting |
-| CR-05 | Apache container image for Azure App Service (`deploy/docker`) | Prepared for an always-on server | Built and tested, **not deployed**; the team decided (Nov 10) not to pay for hosting, so this stays as prepared-but-dormant — the repo keeps the Azure App Service image and config ready, but the interim local setup (Apache/Docker + Cloudflare tunnel) is the one actually in use |
+| CR-05 | Azure App Service deployment (`scripts/azure-start.sh`, `app/config.azure.php`) | Always-on server reachable without a PC running | **Deployed (Nov 10)** — live at `resolveit-cts4911.azurewebsites.net`, Basic (B1) plan, Microsoft/UWF sign-in enforced, same Azure SQL database |
 | CR-06 | Modern help desk interface: sidebar navigation, top search bar, colour-coded status/priority/SLA badges, phone-friendly layout, and JavaScript enhancements (live SLA countdowns, clickable rows, instant filters, confirmation prompts, character counters) | Requested by the project owner on September 27, 2026 | Keep |
 | CR-07 | Dashboard (SLA tiles, my queue, needs-attention list, recent activity) and ticket list search, quick views, filters, sorting, and pagination | Requested on September 27, 2026; moves "search, filters, pagination" out of the deferred list | Keep |
 | CR-08 | Requesters and staff can reply on a ticket until it is closed | Requested on September 27, 2026 (a help desk needs two-way updates) | Keep |
@@ -54,11 +54,8 @@ These are **not** being built. Listing them here is the decision; raising them a
 - Phase 4 remainder: workflow customization UI (adding or reordering statuses). Search/filters/pagination (CR-07) and a phone-friendly layout (CR-06) are now done.
 - Native mobile app
 - Email notifications and self-service password reset by email
-- Custom domain name or permanent public URL
-- Always-on cloud hosting (CR-05) — the team decided not to pay for it (Nov 10) and is
-  staying on the local Apache/Docker + Cloudflare tunnel interim setup instead. The
-  Azure App Service image and config stay in the repo, ready if that decision changes
-- Automatic start of the site at Windows sign-in
+- Custom domain name (the site uses its `azurewebsites.net` address; CR-05 is otherwise live — see 1.2)
+- Automatic start of the site at Windows sign-in (moot now that CR-05 is on Azure instead of a local PC)
 
 ### 1.4 How to add anything new (change control)
 
@@ -284,15 +281,28 @@ Logs: `C:\Users\draft\AppData\Local\CodexTicketSystem\Apache24\logs\` (`cts4911_
 | CR-11 Sorting, live refresh, split view, organizations, advanced search | ✅ Complete | Automated checks + desktop screenshots |
 | Automated tests | ✅ 137/137 passing | `tests/check-local.ps1` |
 | Team accounts | ⚠️ **To do** | Only the administrator exists; create teammates in Manage Users |
-| Always-on hosting (CR-05) | ⏸ Deferred | Declined paying for hosting (Nov 10); staying on the local Apache/Docker + Cloudflare tunnel interim setup. Azure App Service image/config stay in the repo, ready if revisited |
+| Always-on hosting (CR-05) | ✅ Live | `https://resolveit-cts4911.azurewebsites.net` — Azure App Service (Basic B1, Always On), Azure SQL Database, Microsoft/UWF sign-in |
+
+**Azure deployment (current, CR-05):**
+
+- **URL:** `https://resolveit-cts4911.azurewebsites.net` — reachable from anywhere, no PC or tunnel required
+- **Sign-in:** Microsoft/Entra ID only (the six `@students.uwf.edu` team accounts in `TEAM_EMAILS`); App Service's Easy Auth enforces this before PHP ever runs
+- **Database:** Azure SQL (`cts4911-ticket-sql-ca.database.windows.net` / `TicketManagement`) — the same database an earlier deployment pass (Oct 31) had already created and migrated
+- **Resources:** resource group `cts4911-ticket-rg`; plan `resolveit-plan` (East US, B1); the original Free-tier app (`cts4911-ticket-jordan-2026`, Canada Central) is stopped, not deleted, in case anything needs recovering from it
+- Redeploy code with `az webapp deploy --resource-group cts4911-ticket-rg --name resolveit-cts4911 --type zip --src-path <zip of app/ public/ database/ scripts/>`
 
 ![Docker Desktop showing the resolveit stack running locally](images/docker-desktop-containers.png)
 
-The `resolveit` stack (`deploy/docker`, CR-05's container image) running locally in
-Docker Desktop — this is the interim setup in actual use, not the deferred Azure
-App Service deployment.
+The `resolveit` stack (`deploy/docker`) running locally in Docker Desktop — this was
+the interim setup used before CR-05 went live on Azure above; still useful for local
+development and testing.
 
-**Open items before calling deployment complete:** create the team accounts, and run Tests 1–8 once as a team.
+![The ResolveIT sign-in page, served by the stack above](images/resolveit-login-page.jpg)
+
+The sign-in page as served locally at `127.0.0.1:8080` during that interim period.
+The live Azure deployment's sign-in is Microsoft/UWF-account only (no password form).
+
+**Open items before calling deployment complete:** create any remaining team accounts, and run Tests 1–8 once as a team against the live Azure URL.
 
 ---
 
